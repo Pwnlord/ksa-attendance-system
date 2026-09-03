@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1756857600000,
+      "tag": "0000_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1756857660000,
+      "tag": "0001_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1756857720000,
+      "tag": "0002_rate_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1756857780000,
+      "tag": "0003_attendance_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1756857840000,
+      "tag": "0004_rate_limit_policy_alignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1756857900000,
+      "tag": "0005_rate_limit_override",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1756857960000,
+      "tag": "0006_phase5_reviews",
+      "breakpoints": true
+    }
+  ]
+}

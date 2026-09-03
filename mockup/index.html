@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b7ff5" />
+    <title>KSA Attendance — Phase 1 Mockup</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="mockup.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <div class="prototype-banner">
+      <span class="prototype-dot" aria-hidden="true"></span>
+      Phase 1 prototype · fictional data · no real attendance is recorded
+    </div>
+
+    <header class="site-header">
+      <div class="brand-lockup">
+        <a class="brand" href="#home" data-route="home" aria-label="Kora Sales Academy home">
+          <span class="brand-mark" aria-hidden="true">K</span>
+          <span>
+            <strong>Kora Sales Academy</strong>
+            <small>Attendance</small>
+          </span>
+        </a>
+      </div>
+      <div class="header-actions">
+        <span class="environment-badge">MOCKUP</span>
+        <button class="avatar-button" type="button" data-route="profile" aria-label="Open profile">AO</button>
+      </div>
+    </header>
+
+    <div class="prototype-layout">
+      <aside class="reviewer-panel" aria-labelledby="reviewer-title">
+        <div class="reviewer-heading">
+          <div>
+            <p class="eyebrow">Reviewer controls</p>
+            <h2 id="reviewer-title">Try a scenario</h2>
+          </div>
+          <span class="small-badge">STATIC</span>
+        </div>
+        <p class="reviewer-note">These controls simulate backend outcomes for review. They do not change real records.</p>
+
+        <label class="control-label" for="scenario-role">View as</label>
+        <select id="scenario-role" class="select-control">
+          <option value="participant">Participant</option>
+          <option value="rep">Course Representative</option>
+          <option value="admin">Administrator</option>
+        </select>
+
+        <label class="control-label" for="scenario-session">Session</label>
+        <select id="scenario-session" class="select-control">
+          <option value="open">Open · today</option>
+          <option value="scheduled">Scheduled · future</option>
+          <option value="closed">Closed · today</option>
+          <option value="cancelled">Cancelled · today</option>
+          <option value="missing">No session</option>
+        </select>
+
+        <label class="control-label" for="scenario-device">Attendance browser</label>
+        <select id="scenario-device" class="select-control">
+          <option value="registered">Registered browser</option>
+          <option value="unrecognized">Unrecognized browser</option>
+          <option value="none">No active device</option>
+        </select>
+
+        <label class="control-label" for="scenario-location">Location result</label>
+        <select id="scenario-location" class="select-control">
+          <option value="pass">Pass</option>
+          <option value="uncertain">Uncertain · auto case</option>
+          <option value="denied">Permission denied</option>
+          <option value="timeout">Timed out</option>
+          <option value="remote">Clearly remote</option>
+        </select>
+
+        <label class="control-label" for="scenario-manual">Manual case</label>
+        <select id="scenario-manual" class="select-control">
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="expired">Expired</option>
+          <option value="none">No case</option>
+        </select>
+
+        <button class="button button-primary button-full" type="button" data-route="check-in">Open QR check-in route</button>
+        <button class="button button-quiet button-full" type="button" data-action="reset-scenario">Reset scenario</button>
+        <p class="reviewer-footnote">Use the screen navigation to walk through the participant, Course Rep and Admin flows described in <code>screens.md</code>.</p>
+      </aside>
+
+      <div class="app-shell">
+        <nav class="desktop-nav" id="desktop-nav" aria-label="Primary navigation"></nav>
+        <main id="main-content" class="main-content" tabindex="-1">
+          <div id="breadcrumb" class="breadcrumb" aria-label="Breadcrumb"></div>
+          <div id="screen-root"></div>
+        </main>
+        <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation"></nav>
+      </div>
+    </div>
+
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <noscript>
+      <div class="noscript-message">This clickable prototype needs JavaScript enabled for navigation and scenario controls.</div>
+    </noscript>
+  </body>
+</html>
