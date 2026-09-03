@@ -7,6 +7,10 @@ import type {
   DeviceChangeRequest,
   ManualVerificationCase,
   ParticipantSummary,
+  AuditEvent,
+  CourseConfig,
+  PhotoChangeRequest,
+  RosterEntry,
   User,
 } from "./types";
 
@@ -80,6 +84,10 @@ export const api = {
   deviceStatus: () => request<{ browserStatus: string; pendingRequest: DeviceChangeRequest | null }>("/me/device"),
   deviceRequests: () => request<{ items: DeviceChangeRequest[] }>("/me/device-change-requests"),
   deviceRequest: (note?: string) => request<DeviceChangeRequest>("/me/device-change-requests", json({ note })),
+  updateProfile: (body: { fullName?: string; phone?: string; email?: string; currentPassword?: string }) =>
+    request<User>("/me", { method: "PATCH", body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+  photoRequests: () => request<{ items: PhotoChangeRequest[] }>("/me/photo-change-requests"),
+  requestPhotoChange: (form: FormData) => request<PhotoChangeRequest>("/me/photo-change-requests", { method: "POST", body: form }),
   participants: (query: string) => request<{ items: ParticipantSummary[] }>(`/participants?query=${encodeURIComponent(query)}`),
   currentSession: () => request<AttendanceSession | null>("/sessions/current"),
   sessions: (status?: string) => request<{ items: AttendanceSession[] }>(`/sessions${status ? `?status=${status}` : ""}`),
@@ -93,6 +101,8 @@ export const api = {
     request<AttendanceSession>(`/sessions/${sessionId}/extend`, json({ expectedVersion, effectiveEnd, reason })),
   cancelSession: (sessionId: string, expectedVersion: number, reason: string) =>
     request<AttendanceSession>(`/sessions/${sessionId}/cancel`, json({ expectedVersion, reason })),
+  reopenSession: (sessionId: string, expectedVersion: number, effectiveEnd: string, reason: string) =>
+    request<AttendanceSession>(`/sessions/${sessionId}/reopen`, json({ expectedVersion, effectiveEnd, reason })),
   emergencyAttendance: (participantId: string, sessionId: string, reason: string, key: string) =>
     request<AttendanceRecord>("/manual-verifications/emergency-attendance", {
       ...json({ participantId, sessionId, reason }),
@@ -114,6 +124,38 @@ export const api = {
       ...json({ expectedVersion, reason }),
       headers: key ? { "Idempotency-Key": key } : {},
     }),
+  correction: (body: { sessionId: string; participantId: string; targetStatus: "PRESENT" | "ABSENT" | "NOT_APPLICABLE"; checkedInAt?: string | null; reason: string }, key: string) =>
+    request<{ record: AttendanceRecord | null; auditEventId: string }>("/admin/attendance/corrections", { ...json(body), headers: { "Idempotency-Key": key } }),
+  roster: (query?: { status?: RosterEntry["status"]; query?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (query?.status) params.set("status", query.status);
+    if (query?.query) params.set("query", query.query);
+    if (query?.limit) params.set("limit", String(query.limit));
+    return request<{ items: RosterEntry[]; nextCursor: string | null }>(`/admin/roster${params.size ? `?${params.toString()}` : ""}`);
+  },
+  importRoster: (file: File, reason: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("reason", reason);
+    return request<{ importId: string; createdCount: number; updatedCount: number; skippedCount: number; warnings: string[] }>("/admin/roster", { method: "POST", body: form });
+  },
+  updateRoster: (id: string, body: { expectedVersion: number; fullName?: string; email?: string | null; phone?: string | null; enrollmentEffectiveDate?: string; status?: RosterEntry["status"]; reason: string }) =>
+    request<RosterEntry>(`/admin/roster/${id}`, { method: "PATCH", body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+  roleOverview: () => request<{ courseRepresentative: User | null; administrators: User[] }>("/admin/roles"),
+  replaceCourseRep: (participantId: string, reason: string, currentPassword: string) =>
+    request<User>("/admin/roles/course-representative", { method: "PUT", body: JSON.stringify({ participantId, reason, currentPassword }), headers: { "content-type": "application/json" } }),
+  grantAdmin: (userId: string, reason: string, currentPassword: string) =>
+    request<User>("/admin/roles/admins", json({ userId, reason, currentPassword })),
+  revokeAdmin: (userId: string, reason: string, currentPassword: string) =>
+    request<void>(`/admin/roles/admins/${userId}/revoke`, json({ reason, currentPassword })),
+  courseConfig: () => request<CourseConfig>("/admin/config"),
+  updateCourseConfig: (body: Record<string, unknown>) =>
+    request<CourseConfig>("/admin/config", { method: "PATCH", body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+  photoRequestsAdmin: (status?: PhotoChangeRequest["status"]) => request<{ items: PhotoChangeRequest[] }>(`/admin/photo-change-requests${status ? `?status=${status}` : ""}`),
+  photoRequestDetail: (requestId: string) => request<PhotoChangeRequest>(`/admin/photo-change-requests/${requestId}`),
+  photoDecision: (requestId: string, action: "approve" | "reject", expectedVersion: number, reason: string) =>
+    request<PhotoChangeRequest>(`/admin/photo-change-requests/${requestId}/${action}`, json({ expectedVersion, reason })),
+  audit: (action?: string) => request<{ items: AuditEvent[]; nextCursor: string | null }>(`/admin/audit${action ? `?action=${encodeURIComponent(action)}` : ""}`),
   sheetsHealth: () => request<{ status: string; workerStatus: string; pendingCount: number; failedCount: number; lastSuccessfulSyncAt: string | null; lastSanitizedError: string | null; provider: string }>("/admin/sheets/health"),
   sheetsRetry: (jobIds?: string[]) => request<{ queuedCount: number; jobIds: string[] }>("/admin/sheets/retry", json({ jobIds })),
   sheetsReconcile: (scope: "MASTER_REGISTER" | "SESSION" | "SUMMARY" | "FULL", reason: string, key: string, sessionId?: string) =>

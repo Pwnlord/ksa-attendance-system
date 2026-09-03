@@ -22,6 +22,74 @@ export interface User {
   registeredAt: string;
 }
 
+export interface RosterEntry {
+  id: string;
+  serialNumber: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  enrollmentEffectiveDate: string;
+  status: "UNCLAIMED" | "CLAIMED" | "DISABLED";
+  claimedByUserId: string | null;
+  claimedAt: string | null;
+  version: number;
+  createdAt: string;
+}
+
+export interface CourseConfig {
+  courseLabel: string;
+  timezone: string;
+  registrationMode: "OPEN_REGISTRATION" | "PREAPPROVED_ROSTER" | "PILOT_FIRST_CLAIM_ADMIN_REVIEW";
+  venueLatitude: number;
+  venueLongitude: number;
+  geofenceRadiusMetres: number;
+  maxAutomaticAccuracyMetres: number;
+  clearlyRemoteDistanceMetres: number;
+  locationFreshnessSeconds: number;
+  locationAcquisitionTimeoutSeconds: number;
+  defaultSessionDurationMinutes: number;
+  manualCaseGraceMinutes: number;
+  photoRetentionDaysAfterCourse: number;
+  rateLimits: {
+    failedLoginPerAccountIpPer15Minutes: number;
+    passwordResetPerEmailPerHour: number;
+    registrationPerIpPerHour: number;
+    registrationPerIdentityPerHour: number;
+    attendancePerAccountPerMinute: number;
+    privilegedAdminPerMinute: number;
+    onboardingOverrideExpiresAt: string | null;
+  };
+  version: number;
+}
+
+export interface PhotoChangeRequest {
+  id: string;
+  participant: ParticipantSummary;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
+  note: string | null;
+  requestedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  decisionReason: string | null;
+  currentPhotoAccessUrl: string | null;
+  candidatePhotoAccessUrl: string | null;
+  version: number;
+}
+
+export interface AuditEvent {
+  id: string;
+  actorUserId: string | null;
+  actorRole: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  reason: string | null;
+  beforeValue: Record<string, unknown> | null;
+  afterValue: Record<string, unknown> | null;
+  correlationId: string | null;
+  createdAt: string;
+}
+
 export interface AttendanceRecord {
   id: string;
   sessionId: string;

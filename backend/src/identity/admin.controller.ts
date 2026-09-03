@@ -125,6 +125,20 @@ export class AdminController {
     return { items: await Promise.all(entries.map((user) => this.identity.toUser(user))) };
   }
 
+  @Get("roles")
+  async listRoles() {
+    const [courseRepresentative, administrators] = await Promise.all([
+      this.identity.activeCourseRepresentative(),
+      this.identity.activeAdministrators(),
+    ]);
+    return {
+      courseRepresentative: courseRepresentative
+        ? await this.identity.toUser(courseRepresentative)
+        : null,
+      administrators: await Promise.all(administrators.map((user) => this.identity.toUser(user))),
+    };
+  }
+
   @Post("roles/admins")
   async grantAdmin(@CurrentUser() auth: AuthRequestContext, @Body() input: GrantAdminDto) {
     await this.roles.grantAdmin(auth.userId, input.userId, input.reason, input.currentPassword);

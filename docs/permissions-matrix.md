@@ -46,6 +46,18 @@ This document is the authorization contract for the initial single-course KSA At
 | View Google Sheets sync health | No | Actionable current-operation warning | Yes |
 | Trigger Sheets retry/reconciliation/rebuild | No | No | Yes |
 
+## Frontend surface mapping
+
+The frontend exposes the capabilities above through these role-protected screens. The API and backend remain the final authorization boundary.
+
+| Role | Screens and actions |
+| --- | --- |
+| Participant | Home, check-in, attendance history, profile editing, device replacement request, and identification-photo replacement request |
+| Course Representative | Operations overview, live attendance, session creation/scheduling/opening/closing/extension/cancellation, participant search, emergency attendance, manual-verification queue, and device-review queue |
+| Administrator | All Course Representative screens plus roster import/edit/disable/restore, Course Representative and Administrator role management, course/security configuration, closed-session actions, historical attendance correction, photo-review queue, audit log, and Google Sheets administration |
+
+Accounts with more than one role see each applicable navigation area. A screen being visible does not grant permission: protected API routes and object-level checks still decide whether an action is allowed.
+
 ## Object-level rules
 
 Role checks alone are insufficient. The backend must also enforce ownership and current-state rules:

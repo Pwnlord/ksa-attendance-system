@@ -6,6 +6,7 @@ import { StorageModule } from "../infrastructure/storage/storage.module";
 import { SecurityModule } from "../security/security.module";
 import { AccountTokenService } from "./account-token.service";
 import { AdminController } from "./admin.controller";
+import { AdminAuditController } from "./admin-audit.controller";
 import { AdminConfigController } from "./admin-config.controller";
 import { AuditService } from "./audit.service";
 import { AuthController } from "./auth.controller";
@@ -27,7 +28,7 @@ import { CourseConfigService } from "./course-config.service";
 @Global()
 @Module({
   imports: [DatabaseModule, JobsModule, SecurityModule, StorageModule],
-  controllers: [AuthController, MeController, AdminController, AdminConfigController],
+  controllers: [AuthController, MeController, AdminController, AdminConfigController, AdminAuditController],
   providers: [
     AccountTokenService,
     AdminRateLimitGuard,

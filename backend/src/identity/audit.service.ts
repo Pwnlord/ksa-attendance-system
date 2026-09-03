@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { DATABASE } from "../database/database.constants";
 import type { Database, DatabaseClient } from "../database/database.module";
 import { auditEvents } from "../database/schema";
+import { desc, eq } from "drizzle-orm";
 
 export interface AuditInput {
   actorUserId?: string;
@@ -53,5 +54,15 @@ export class AuditService {
       .returning({ id: auditEvents.id });
     if (!event) throw new Error("Audit event was not created.");
     return event.id;
+  }
+
+  async list(limit = 100, action?: string) {
+    const events = await this.db
+      .select()
+      .from(auditEvents)
+      .where(action?.trim() ? eq(auditEvents.action, action.trim()) : undefined)
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(Math.min(Math.max(limit, 1), 200));
+    return { items: events, nextCursor: null };
   }
 }

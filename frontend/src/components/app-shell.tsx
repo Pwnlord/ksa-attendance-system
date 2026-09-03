@@ -46,9 +46,12 @@ export function AppShell({ user, children }: { user: User; children: React.React
   const router = useRouter();
   const pathname = usePathname();
   const operator = user.roles.includes("COURSE_REP") || user.roles.includes("ADMIN");
-  const links = operator
-    ? [{ href: "/operations", label: "Overview" }, { href: "/operations/attendance", label: "Attendance" }, { href: "/operations/participants", label: "Participants" }, { href: "/operations/manual-verifications", label: "Queues" }, ...(user.roles.includes("ADMIN") ? [{ href: "/admin/sheets", label: "Administration" }] : [])]
-    : [{ href: "/home", label: "Home" }, { href: "/attendance", label: "Attendance" }, { href: "/history", label: "History" }, { href: "/profile", label: "Profile" }];
+  const participant = user.roles.includes("PARTICIPANT");
+  const links = [
+    ...(participant ? [{ href: "/home", label: "My home" }, { href: "/attendance", label: "My attendance" }, { href: "/history", label: "My history" }, { href: "/profile", label: "My profile" }] : []),
+    ...(operator ? [{ href: "/operations", label: "Operations" }, { href: "/operations/attendance", label: "Live attendance" }, { href: "/operations/participants", label: "Participants" }, { href: "/operations/manual-verifications", label: "Review queues" }, { href: "/operations/sessions", label: "Sessions" }] : []),
+    ...(user.roles.includes("ADMIN") ? [{ href: "/admin/roster", label: "Roster" }, { href: "/admin/roles", label: "Roles" }, { href: "/admin/config", label: "Course setup" }, { href: "/admin/photo-requests", label: "Photo reviews" }, { href: "/admin/attendance-corrections", label: "Corrections" }, { href: "/admin/audit", label: "Audit log" }, { href: "/admin/sheets", label: "Sheets" }] : []),
+  ];
   async function signOut() {
     await api.logout().catch(() => undefined);
     router.replace("/login");
@@ -75,8 +78,8 @@ export function AppShell({ user, children }: { user: User; children: React.React
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-xl justify-around gap-1">{links.slice(0, operator ? 4 : 4).map((link) => <NavItem key={link.href} {...link} active={pathname === link.href || pathname.startsWith(`${link.href}/`)} mobile />)}</div>
+      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 overflow-x-auto border-t border-border bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
+        <div className="mx-auto flex min-w-max justify-around gap-1">{links.map((link) => <NavItem key={link.href} {...link} active={pathname === link.href || pathname.startsWith(`${link.href}/`)} mobile />)}</div>
       </nav>
     </div>
   );

@@ -62,6 +62,22 @@ export class IdentityService {
       .then((rows) => rows.map((row) => row.user));
   }
 
+  async activeCourseRepresentative() {
+    const [row] = await this.db
+      .select({ user: users })
+      .from(roleAssignments)
+      .innerJoin(users, eq(roleAssignments.userId, users.id))
+      .where(
+        and(
+          eq(roleAssignments.role, "COURSE_REP"),
+          isNull(roleAssignments.revokedAt),
+          eq(users.accountStatus, "ACTIVE"),
+        ),
+      )
+      .limit(1);
+    return row?.user ?? null;
+  }
+
   async toUser(user: NonNullable<Awaited<ReturnType<IdentityService["findById"]>>>) {
     const roles = await this.roles.list(user.id);
     return {
