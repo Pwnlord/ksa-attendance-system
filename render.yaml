@@ -20,7 +20,9 @@ services:
   - type: web
     name: ksa-attendance-staging-api
     runtime: node
-    plan: free
+    # Paid minimum is required for pre-deploy migrations and private-network
+    # access from the frontend service.
+    plan: 0.5c-512mb
     region: frankfurt
     rootDir: backend
     buildCommand: npm ci && npm run build
@@ -28,7 +30,6 @@ services:
     startCommand: npm start
     autoDeployTrigger: off
     healthCheckPath: /api/v1/health/ready
-    maxShutdownDelaySeconds: 60
     envVars:
       - key: NODE_ENV
         value: staging
@@ -86,7 +87,6 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start:worker
     autoDeployTrigger: off
-    maxShutdownDelaySeconds: 60
     envVars:
       - key: NODE_ENV
         value: staging
@@ -143,7 +143,6 @@ services:
     startCommand: npm start
     autoDeployTrigger: off
     healthCheckPath: /login
-    maxShutdownDelaySeconds: 60
     envVars:
       - key: BACKEND_INTERNAL_URL
         fromService:

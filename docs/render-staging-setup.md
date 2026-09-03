@@ -40,11 +40,11 @@ The Blueprint creates these resources:
 | Resource | Render type | Purpose | Staging plan |
 | --- | --- | --- | --- |
 | `ksa-attendance-staging-frontend` | Web service | Next.js participant/operator interface | Free for initial smoke deployment; paid is preferred for serious rehearsal |
-| `ksa-attendance-staging-api` | Web service | NestJS authoritative API | Free for initial smoke deployment; paid is preferred for serious rehearsal |
+| `ksa-attendance-staging-api` | Web service | NestJS authoritative API | Minimum paid plan; required for pre-deploy migrations and private-network access |
 | `ksa-attendance-staging-worker` | Background worker | PostgreSQL queue, email, Sheets, lifecycle, and photo-retention jobs | Minimum paid worker plan |
 | `ksa-attendance-staging-db` | Render Postgres | Authoritative staging database | Paid minimum plan so backup/restore can be tested |
 
-The worker cannot use a Free service plan, and Free Postgres does not provide automatic backups. Render’s current plan limitations should be checked before confirming billing. [Render compute plans](https://render.com/docs/compute-plans), [Render Free limitations](https://render.com/docs/free)
+The API requires a paid service plan because its Blueprint uses a pre-deploy migration command and the frontend reaches it over Render’s private network. The worker cannot use a Free service plan, and Free Postgres does not provide automatic backups. Render’s current plan limitations should be checked before confirming billing. [Render compute plans](https://render.com/docs/compute-plans), [Render Free limitations](https://render.com/docs/free)
 
 ## Configure the services
 
@@ -56,6 +56,8 @@ Render supplies these references:
 - `BACKEND_INTERNAL_URL` on the frontend from the API’s private `host:port` address.
 
 The frontend rewrite converts that private address into an internal HTTP URL. The browser still calls only the frontend’s `/api/v1` path.
+
+The frontend may remain on the Free plan for the initial smoke deployment. It can be upgraded later for a more reliable rehearsal without changing the application architecture.
 
 ### Fixed values already in the Blueprint
 
@@ -169,4 +171,3 @@ Record the result, date, environment, browser/device, expected outcome, actual o
 ## Gate 1 completion
 
 Staging is ready for the controlled pilot only after deployment, security, acceptance, accessibility, device, worker, provider, backup, and support checks are recorded and approved. The next gate is the controlled venue pilot; production remains a separate later gate.
-
