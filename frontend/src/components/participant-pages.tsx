@@ -59,6 +59,7 @@ export function CheckInFlow() {
   useEffect(() => {
     if (!context || context.state !== "OPEN" || context.deviceStatus !== "REGISTERED_BROWSER" || result) return;
     const key = newIdempotencyKey("attendance");
+    const timeoutSeconds = context.locationAcquisitionTimeoutSeconds || 30;
     let cancelled = false;
     let retryTimer: number | undefined;
     const succeed = (body: Parameters<typeof api.checkIn>[0]) => {
@@ -77,7 +78,7 @@ export function CheckInFlow() {
           }
           succeed({ locationFailure: positionError.code === 1 ? "PERMISSION_DENIED" : positionError.code === 3 ? "TIMEOUT" : "UNAVAILABLE" });
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: Math.max(1, context.locationAcquisitionTimeoutSeconds) * 1_000 },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: Math.max(1, timeoutSeconds) * 1_000 },
       );
     };
     requestLocation(0);
@@ -90,7 +91,7 @@ export function CheckInFlow() {
   if (context.state === "CLOSED") return <CheckInState title="Today's attendance session has ended" description="If you were physically present, please speak with the Course Representative or Administrator." />;
   if (context.state === "ALREADY_PRESENT" && context.attendanceRecord) return <CheckInState title="You're already checked in" description={`Your attendance was recorded at ${formatTime(context.attendanceRecord.checkedInAt)}. You can close this page.`} tone="success"><TextLink href="/history">View attendance history</TextLink></CheckInState>;
   if (context.deviceStatus !== "REGISTERED_BROWSER") return <CheckInState title="This browser needs approval" description="Your account is available, but attendance can only be recorded from an approved browser." tone="warning"><TextLink href="/profile">Request device change</TextLink></CheckInState>;
-  if (!result) return <CheckInState title="Verifying attendance…" description={`Getting a precise GPS location. We will wait up to ${context.locationAcquisitionTimeoutSeconds} seconds and retry once if needed.`} loading />;
+  if (!result) return <CheckInState title="Verifying attendance…" description={`Getting a precise GPS location. We will wait up to ${context.locationAcquisitionTimeoutSeconds || 30} seconds and retry once if needed.`} loading />;
   if (result.outcome === "ATTENDANCE_RECORDED" || result.outcome === "ALREADY_CHECKED_IN") return <CheckInState title={result.outcome === "ALREADY_CHECKED_IN" ? "You're already checked in" : "You're present"} description={`Attendance was recorded at ${formatTime(result.serverTime)}. You can close this page.`} tone="success"><TextLink href="/history">View attendance history</TextLink></CheckInState>;
   const manualCase = result.manualVerificationCase;
   const locationMessage = result.outcome === "LOCATION_TIMEOUT"
