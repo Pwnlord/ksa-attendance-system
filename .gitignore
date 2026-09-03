@@ -29,7 +29,7 @@ temp/
 
 # Local uploads and generated data
 uploads/
-storage/
+/storage/
 
 # Certificates, keys, and credential files
 *.pem
