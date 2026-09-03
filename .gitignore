@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Build output
+dist/
+.next/
+out/
+coverage/
+.turbo/
+.cache/
+
+# End-to-end and test artifacts
+playwright-report/
+test-results/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Local uploads and generated data
+uploads/
+storage/
+
+# Certificates, keys, and credential files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# Operating-system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# TypeScript incremental build metadata
+*.tsbuildinfo
