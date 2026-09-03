@@ -5,7 +5,7 @@ export type AttendanceStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
 export interface ParticipantSummary {
   id: string;
   fullName: string;
-  serialNumber: string;
+  serialNumber: string | null;
   status: "ACTIVE" | "DISABLED";
   roles: Role[];
 }

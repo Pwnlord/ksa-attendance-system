@@ -59,8 +59,11 @@ export class CourseConfigUpdateDto {
   timezone?: string;
 
   @IsOptional()
-  @IsIn(["PREAPPROVED_ROSTER", "PILOT_FIRST_CLAIM_ADMIN_REVIEW"])
-  registrationMode?: "PREAPPROVED_ROSTER" | "PILOT_FIRST_CLAIM_ADMIN_REVIEW";
+  @IsIn(["OPEN_REGISTRATION", "PREAPPROVED_ROSTER", "PILOT_FIRST_CLAIM_ADMIN_REVIEW"])
+  registrationMode?:
+    | "OPEN_REGISTRATION"
+    | "PREAPPROVED_ROSTER"
+    | "PILOT_FIRST_CLAIM_ADMIN_REVIEW";
 
   @IsOptional()
   @IsNumber()

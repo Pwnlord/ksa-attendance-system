@@ -1793,7 +1793,7 @@ components:
 
     ParticipantSummary:
       type: object
-      required: [id, fullName, serialNumber, status, roles]
+      required: [id, fullName, status, roles]
       properties:
         id:
           type: string
@@ -1801,7 +1801,7 @@ components:
         fullName:
           type: string
         serialNumber:
-          type: string
+          type: [string, "null"]
           pattern: "^KSA-[0-9]{2}$"
         status:
           $ref: "#/components/schemas/UserStatus"
@@ -1843,7 +1843,7 @@ components:
           maxLength: 256
         serialNumber:
           type: string
-          description: Trimmed and prefix-normalized before exact KSA-XX validation; must match one eligible unclaimed roster entry
+          description: Required in every mode; it is trimmed, prefix-normalized, and validated as KSA-XX. PREAPPROVED_ROSTER additionally requires it to match an eligible unclaimed roster entry.
         identificationPhoto:
           type: string
           format: binary
@@ -2380,8 +2380,8 @@ components:
           example: Africa/Lagos
         registrationMode:
           type: string
-          enum: [PREAPPROVED_ROSTER, PILOT_FIRST_CLAIM_ADMIN_REVIEW]
-          description: PREAPPROVED_ROSTER is the ordinary mode; the pilot exception requires explicit configuration and review of every claim.
+          enum: [OPEN_REGISTRATION, PREAPPROVED_ROSTER, PILOT_FIRST_CLAIM_ADMIN_REVIEW]
+          description: OPEN_REGISTRATION allows anyone to register; PREAPPROVED_ROSTER requires an eligible roster match; the pilot exception requires explicit configuration and review of every claim.
         venueLatitude:
           type: number
           minimum: -90
@@ -2442,7 +2442,7 @@ components:
           example: Africa/Lagos
         registrationMode:
           type: string
-          enum: [PREAPPROVED_ROSTER, PILOT_FIRST_CLAIM_ADMIN_REVIEW]
+          enum: [OPEN_REGISTRATION, PREAPPROVED_ROSTER, PILOT_FIRST_CLAIM_ADMIN_REVIEW]
         venueLatitude:
           type: number
           minimum: -90

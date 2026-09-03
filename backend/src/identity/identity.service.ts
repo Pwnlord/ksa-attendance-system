@@ -90,7 +90,7 @@ export class IdentityService {
     return {
       id: user.id,
       fullName: user.fullName,
-      serialNumber: user.participantSerial ?? "KSA-00",
+      serialNumber: user.participantSerial,
       status: user.accountStatus === "ACTIVE" ? "ACTIVE" : "DISABLED",
       roles,
     };

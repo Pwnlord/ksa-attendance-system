@@ -28,6 +28,7 @@ export const sessionStatusEnum = pgEnum("attendance_session_status", [
   "CANCELLED",
 ]);
 export const registrationModeEnum = pgEnum("registration_mode", [
+  "OPEN_REGISTRATION",
   "PREAPPROVED_ROSTER",
   "PILOT_FIRST_CLAIM_ADMIN_REVIEW",
 ]);
@@ -221,7 +222,7 @@ export const courseConfig = pgTable(
     courseLabel: varchar("course_label", { length: 200 }).notNull(),
     timezone: varchar("timezone", { length: 64 }).default("Africa/Lagos").notNull(),
     registrationMode: registrationModeEnum("registration_mode")
-      .default("PREAPPROVED_ROSTER")
+      .default("OPEN_REGISTRATION")
       .notNull(),
     venueLatitude: numeric("venue_latitude", { precision: 10, scale: 7 }).notNull(),
     venueLongitude: numeric("venue_longitude", { precision: 10, scale: 7 }).notNull(),

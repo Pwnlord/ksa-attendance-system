@@ -68,7 +68,7 @@ The exact status-code choice is finalized in the API contract. Clients must prim
 | No class on Wednesday | No session, absence, or denominator entry |
 | Session opened by mistake | Course Rep may cancel while open; keep a marked `CANCELLED` Sheet tab and exclude from Summary |
 | Participant registers late | Sessions before roster `enrollmentEffectiveDate` show `N/A`, never Absent, and do not affect percentage |
-| Roster entry missing, disabled, claimed, or mismatched | Create no account; provide safe support/dispute guidance without exposing roster details |
+| Roster entry missing, disabled, claimed, or mismatched | In `PREAPPROVED_ROSTER`, create no account and provide safe support/dispute guidance without exposing roster details; in `OPEN_REGISTRATION`, this condition is not consulted |
 | Duplicate email, phone, or serial registration | Block and provide login/support/dispute guidance |
 | GPS ambiguous near venue | Classify `UNCERTAIN`, auto-create one pending case, and offer retry/status |
 | GPS reliably far away | Reject automatic attendance without accusatory wording; manual case requires explicit request |

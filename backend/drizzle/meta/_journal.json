@@ -50,6 +50,20 @@
       "when": 1756857960000,
       "tag": "0006_phase5_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1756858020000,
+      "tag": "0007_open_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1756858080000,
+      "tag": "0008_open_registration_default",
+      "breakpoints": true
     }
   ]
 }

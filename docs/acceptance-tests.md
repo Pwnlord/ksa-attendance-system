@@ -28,6 +28,8 @@ Given an eligible `UNCLAIMED` roster entry and a new participant enters matching
 - Email verification is queued through the durable worker, but the unverified participant remains attendance-eligible.
 - The success screen explains device persistence and replacement implications.
 
+When `OPEN_REGISTRATION` is active, a new participant with valid details and a unique `KSA-07` serial can register without any matching roster entry. The same identity, photo, device, email-verification, and Participant-only assertions still apply.
+
 ### AT-002 Invalid or duplicate registration is safe
 
 - Malformed serials such as `KSA-7`, `KSA-007`, `KS-24`, `KSA-A4`, and `KSA24` are rejected clearly.

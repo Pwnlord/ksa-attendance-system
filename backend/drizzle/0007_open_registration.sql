@@ -1,0 +1,1 @@
+ALTER TYPE "public"."registration_mode" ADD VALUE IF NOT EXISTS 'OPEN_REGISTRATION';

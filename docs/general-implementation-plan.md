@@ -149,8 +149,8 @@ The service can start from documented steps, migrate a blank test database, run 
 
 - Implement User, RoleAssignment, hashed AuthenticationSession, recovery, and verification persistence.
 - Implement Admin CSV `RosterEntry` import/correction/disable, claim/dispute handling, and `enrollmentEffectiveDate`.
-- Implement participant registration against an eligible unclaimed roster entry and normalize name, unique phone, email, and exact `KSA-XX` serial.
-- Enforce unique normalized email, phone, and serial; keep the pilot first-claim mode explicit and Admin-reviewed.
+- Implement the active `OPEN_REGISTRATION` policy: anyone may register without a roster match, while name, unique phone, email, and exact `KSA-XX` serial remain required.
+- Keep `PREAPPROVED_ROSTER` supported as a reversible policy that requires an eligible unclaimed roster entry and atomically claims it. Enforce unique normalized email, phone, and serial; keep the pilot first-claim mode explicit and Admin-reviewed.
 - Hash passwords with Argon2id. Queue Resend verification email; do not gate attendance on verification and allow self-service recovery only for verified email.
 - Enforce the 8 MB photo limit; decode safely, resize to 1600 px longest edge, re-encode JPEG quality 85, strip EXIF, and store under a randomized key in the active private storage provider.
 - Register the current browser as the participant's first active attendance device.

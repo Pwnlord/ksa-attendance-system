@@ -70,31 +70,44 @@ export class RegistrationService {
     }
 
     const config = await this.defaultCourseConfig();
-    const candidate = await this.db
-      .select()
-      .from(rosterEntries)
-      .where(and(eq(rosterEntries.courseConfigId, config.id), eq(rosterEntries.serial, serial)))
-      .limit(1);
-    this.assertRosterMatch(candidate[0], fullName, email, phone);
+    if (config.registrationMode === "PREAPPROVED_ROSTER") {
+      if (!serial) {
+        throw new AppError(
+          "REGISTRATION_NOT_ELIGIBLE",
+          409,
+          "We could not match these details to an approved roster entry.",
+        );
+      }
+      const candidate = await this.db
+        .select()
+        .from(rosterEntries)
+        .where(and(eq(rosterEntries.courseConfigId, config.id), eq(rosterEntries.serial, serial)))
+        .limit(1);
+      this.assertRosterMatch(candidate[0], fullName, email, phone);
+    }
     await this.assertIdentityAvailable(email, phone, serial);
 
     const processed = await this.photos.process(input.identificationPhoto);
     await this.photos.store(processed);
     try {
       return await this.db.transaction(async (tx) => {
-        const [roster] = await tx
-          .select()
-          .from(rosterEntries)
-          .where(
-            and(
-              eq(rosterEntries.courseConfigId, config.id),
-              eq(rosterEntries.serial, serial),
-              eq(rosterEntries.status, "UNCLAIMED"),
-            ),
-          )
-          .for("update")
-          .limit(1);
-        this.assertRosterMatch(roster, fullName, email, phone);
+        let roster: typeof rosterEntries.$inferSelect | undefined;
+        if (config.registrationMode === "PREAPPROVED_ROSTER" && serial) {
+          const [candidate] = await tx
+            .select()
+            .from(rosterEntries)
+            .where(
+              and(
+                eq(rosterEntries.courseConfigId, config.id),
+                eq(rosterEntries.serial, serial),
+                eq(rosterEntries.status, "UNCLAIMED"),
+              ),
+            )
+            .for("update")
+            .limit(1);
+          roster = candidate;
+          this.assertRosterMatch(roster, fullName, email, phone);
+        }
 
         const [duplicate] = await tx
           .select({ id: users.id })
@@ -103,7 +116,7 @@ export class RegistrationService {
             or(
               eq(users.normalizedEmail, email),
               eq(users.normalizedPhone, phone),
-              eq(users.participantSerial, serial),
+              ...(serial ? [eq(users.participantSerial, serial)] : []),
             ),
           )
           .limit(1);
@@ -140,16 +153,18 @@ export class RegistrationService {
           checksum: processed.checksum,
           approvedAt: now,
         });
-        await tx
-          .update(rosterEntries)
-          .set({
-            status: "CLAIMED",
-            claimedUserId: user.id,
-            claimedAt: now,
-            updatedAt: now,
-            version: sql`${rosterEntries.version} + 1`,
-          })
-          .where(eq(rosterEntries.id, roster.id));
+        if (roster) {
+          await tx
+            .update(rosterEntries)
+            .set({
+              status: "CLAIMED",
+              claimedUserId: user.id,
+              claimedAt: now,
+              updatedAt: now,
+              version: sql`${rosterEntries.version} + 1`,
+            })
+            .where(eq(rosterEntries.id, roster.id));
+        }
         await this.accountTokens.issueVerification(user.id, email, fullName, tx);
         await this.audit.recordWith(tx, {
           actorUserId: user.id,
@@ -192,16 +207,15 @@ export class RegistrationService {
     phone: string,
     serial: string,
   ): Promise<void> {
+    const conditions = [
+      eq(users.normalizedEmail, email),
+      eq(users.normalizedPhone, phone),
+      eq(users.participantSerial, serial),
+    ];
     const [duplicate] = await this.db
       .select({ id: users.id })
       .from(users)
-      .where(
-        or(
-          eq(users.normalizedEmail, email),
-          eq(users.normalizedPhone, phone),
-          eq(users.participantSerial, serial),
-        ),
-      )
+      .where(or(...conditions))
       .limit(1);
     if (duplicate)
       throw new AppError("CONFLICT", 409, "These registration details are already in use.");

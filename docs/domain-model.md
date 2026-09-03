@@ -74,7 +74,7 @@ There is one initial course deployment. The model may retain a course identifier
 
 ### RosterEntry
 
-Represents an Administrator-imported authorization to register for the course.
+Represents an optional Administrator-managed authorization list for the course. It is required only when `CourseConfig.registrationMode` is `PREAPPROVED_ROSTER`.
 
 Key information:
 
@@ -95,7 +95,7 @@ Key information:
 - Optional participant serial number in canonical `KSA-XX` form.
 - Account status, registration timestamp, and nullable email-verification timestamp.
 
-Public registration creates a Participant only after roster matching. It queues a Resend verification email, authenticates the participant, and does not block attendance while email remains unverified. Only verified email can support self-service password recovery. A bootstrap Administrator may exist without a participant serial or attendance eligibility.
+Public registration creates a Participant in `OPEN_REGISTRATION` without roster matching, while `PREAPPROVED_ROSTER` requires an eligible roster entry. Every Participant registration supplies a unique canonical serial number. Registration queues a Resend verification email, authenticates the participant, and does not block attendance while email remains unverified. Only verified email can support self-service password recovery. A bootstrap Administrator may exist without a participant serial or attendance eligibility.
 
 ### AuthenticationSession
 
@@ -242,7 +242,7 @@ Jobs use the PostgreSQL-backed queue and no Redis. In the legacy paid profile th
 - At least one active Administrator.
 - Only server time determines authoritative timestamps and attendance-window validity.
 - Public registration grants only Participant.
-- Ordinary registration requires and claims an approved roster entry.
+- `OPEN_REGISTRATION` does not require a roster match; `PREAPPROVED_ROSTER` requires and claims an approved roster entry.
 - Serial, email, and normalized phone are unique; participant serial follows canonical `KSA-XX` and is not self-editable.
 - Device replacement revokes the old credential as part of the same consistency boundary.
 - Google Sheets never determines whether attendance exists.
@@ -260,7 +260,7 @@ The following operations require a database transaction or an equivalent atomic 
 - Device replacement approval plus old-device revocation, new-device activation, request decision, and audit event.
 - Role change plus enforcement of one Course Representative and at least one Administrator.
 - Session open plus enforcement of one effective/open session.
-- Roster claim plus Participant creation, initial role, initial device, and outbox work.
+- When `PREAPPROVED_ROSTER` is active, roster claim plus Participant creation, initial role, initial device, and outbox work.
 - Open-session extension/reopen plus policy validation and audit.
 - Historical correction plus before/after audit and projection job.
 
