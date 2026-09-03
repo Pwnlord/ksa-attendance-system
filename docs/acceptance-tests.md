@@ -81,7 +81,7 @@ For poor-accuracy or ambiguous location classified as `UNCERTAIN`:
 - Approval creates one `MANUAL` attendance with reviewer and reason/context.
 - Repeated approval is safe and does not duplicate attendance.
 
-For permission denied, unavailable, unsupported, or no fix within approximately 10 seconds, no case is auto-created; the participant receives recovery guidance and may explicitly request manual verification. A fix older than 30 seconds is discarded and replaced with a fresh request.
+For permission denied, unavailable, unsupported, or no fix within approximately 30 seconds plus one automatic retry, no case is auto-created; the participant receives recovery guidance and may explicitly request manual verification. A fix older than 30 seconds is discarded and replaced with a fresh request.
 
 ### AT-009 Clearly remote location
 
@@ -202,7 +202,7 @@ Given a roster entry with an `enrollmentEffectiveDate`, every earlier session is
 - Serial trim, normalization, valid/invalid forms, and uniqueness mapping.
 - Great-circle distance and boundary cases.
 - Accuracy threshold and ambiguous-location classification.
-- Stale-fix, 10-second acquisition, 200 m pass, 200–500 m uncertainty, poor-accuracy uncertainty, and beyond-500 m reject boundaries.
+- Stale-fix, 30-second acquisition with one retry, 200 m pass, 200–500 m uncertainty, poor-accuracy uncertainty, and beyond-500 m reject boundaries.
 - Every permission and self-approval denial.
 - Every allowed and forbidden session transition.
 - Attendance duplicate conflict mapping to existing result.

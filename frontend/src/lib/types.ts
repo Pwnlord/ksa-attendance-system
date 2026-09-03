@@ -38,6 +38,7 @@ export interface AttendanceContext {
   session: AttendanceSession | null;
   attendanceRecord: AttendanceRecord | null;
   deviceStatus: "REGISTERED_BROWSER" | "UNRECOGNIZED_BROWSER" | "NO_ACTIVE_DEVICE";
+  locationAcquisitionTimeoutSeconds: number;
 }
 
 export interface CheckInResult {

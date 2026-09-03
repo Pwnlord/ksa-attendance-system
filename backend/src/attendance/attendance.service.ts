@@ -114,6 +114,7 @@ export class AttendanceService {
           session: await this.sessions.toResponse(open, config.timezone),
           attendanceRecord: record ? await this.toRecordResponse(record) : null,
           deviceStatus,
+          locationAcquisitionTimeoutSeconds: config.locationTimeoutSeconds,
         },
       };
     }
@@ -135,6 +136,7 @@ export class AttendanceService {
         session: closed ? await this.sessions.toResponse(closed, config.timezone) : null,
         attendanceRecord: null,
         deviceStatus,
+        locationAcquisitionTimeoutSeconds: config.locationTimeoutSeconds,
       },
     };
   }

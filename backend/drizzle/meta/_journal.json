@@ -64,6 +64,13 @@
       "when": 1756858080000,
       "tag": "0008_open_registration_default",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1756858140000,
+      "tag": "0009_location_timeout_30_seconds",
+      "breakpoints": true
     }
   ]
 }

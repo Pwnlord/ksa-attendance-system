@@ -171,7 +171,7 @@ The service can start from documented steps, migrate a blank test database, run 
 
 ### Work
 
-- Implement CourseConfig with `Africa/Lagos`, three-hour session default, 200 m radius, 150 m maximum automatic accuracy, 500 m clearly-remote boundary, 30-second freshness, 10-second acquisition timeout, 15-minute manual grace, retention, and configurable rate limits.
+- Implement CourseConfig with `Africa/Lagos`, three-hour session default, 200 m radius, 150 m maximum automatic accuracy, 500 m clearly-remote boundary, 30-second freshness, 30-second browser acquisition timeout with one automatic retry, 15-minute manual grace, retention, and configurable rate limits.
 - Implement session create/schedule/automatic-activate/open/close/extend/cancel/Admin-reopen transitions.
 - Enforce Course Rep same-day/two-hour open-session extension and no Course Rep closed-session reopen/cancel.
 - Enforce one effective/open session and valid start/end using server time.

@@ -72,7 +72,7 @@ The exact status-code choice is finalized in the API contract. Clients must prim
 | Duplicate email, phone, or serial registration | Block and provide login/support/dispute guidance |
 | GPS ambiguous near venue | Classify `UNCERTAIN`, auto-create one pending case, and offer retry/status |
 | GPS reliably far away | Reject automatic attendance without accusatory wording; manual case requires explicit request |
-| Location denied/unavailable/no fix within 10 seconds | Do not reject or auto-create a case; offer recovery and explicit manual request |
+| Location denied/unavailable/no fix within 30 seconds plus one retry | Do not reject or auto-create a case; offer recovery and explicit manual request |
 | Photo unavailable to reviewer | Do not silently approve; use explicit Admin/emergency policy and audit |
 | Google Sheets unavailable after commit | Participant still succeeds; durable retry and Admin backlog |
 | Sheet row manually removed | Database remains authoritative; reconciliation restores projection |

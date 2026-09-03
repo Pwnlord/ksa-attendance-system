@@ -2143,7 +2143,7 @@ components:
 
     AttendanceContext:
       type: object
-      required: [state, deviceStatus]
+      required: [state, deviceStatus, locationAcquisitionTimeoutSeconds]
       properties:
         state:
           type: string
@@ -2159,6 +2159,10 @@ components:
         deviceStatus:
           type: string
           enum: [REGISTERED_BROWSER, UNRECOGNIZED_BROWSER, NO_ACTIVE_DEVICE]
+        locationAcquisitionTimeoutSeconds:
+          type: integer
+          minimum: 1
+          description: Browser GPS acquisition timeout for each attempt; the client retries once after a timeout.
 
     ReviewStatus:
       type: string

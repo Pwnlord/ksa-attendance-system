@@ -230,7 +230,7 @@ export const courseConfig = pgTable(
     maxAutomaticAccuracyMeters: integer("max_automatic_accuracy_meters").default(150).notNull(),
     clearlyRemoteBoundaryMeters: integer("clearly_remote_boundary_meters").default(500).notNull(),
     locationFreshnessSeconds: integer("location_freshness_seconds").default(30).notNull(),
-    locationTimeoutSeconds: integer("location_timeout_seconds").default(10).notNull(),
+    locationTimeoutSeconds: integer("location_timeout_seconds").default(30).notNull(),
     defaultSessionDurationMinutes: integer("default_session_duration_minutes")
       .default(180)
       .notNull(),

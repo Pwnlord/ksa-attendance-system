@@ -59,13 +59,29 @@ export function CheckInFlow() {
   useEffect(() => {
     if (!context || context.state !== "OPEN" || context.deviceStatus !== "REGISTERED_BROWSER" || result) return;
     const key = newIdempotencyKey("attendance");
-    const succeed = (body: Parameters<typeof api.checkIn>[0]) => api.checkIn(body, key).then(setResult).catch(setError);
-    if (!navigator.geolocation) { succeed({ locationFailure: "UNSUPPORTED" }); return; }
-    navigator.geolocation.getCurrentPosition(
-      (position) => succeed({ location: { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMetres: position.coords.accuracy, capturedAt: new Date(position.timestamp).toISOString() } }),
-      (positionError) => succeed({ locationFailure: positionError.code === 1 ? "PERMISSION_DENIED" : positionError.code === 3 ? "TIMEOUT" : "UNAVAILABLE" }),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
-    );
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const succeed = (body: Parameters<typeof api.checkIn>[0]) => {
+      if (!cancelled) void api.checkIn(body, key).then(setResult).catch(setError);
+    };
+    if (!navigator.geolocation) { succeed({ locationFailure: "UNSUPPORTED" }); return () => { cancelled = true; }; }
+    const requestLocation = (attempt: number) => {
+      if (cancelled) return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => succeed({ location: { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMetres: position.coords.accuracy, capturedAt: new Date(position.timestamp).toISOString() } }),
+        (positionError) => {
+          if (cancelled) return;
+          if (positionError.code === 3 && attempt === 0) {
+            retryTimer = window.setTimeout(() => requestLocation(1), 250);
+            return;
+          }
+          succeed({ locationFailure: positionError.code === 1 ? "PERMISSION_DENIED" : positionError.code === 3 ? "TIMEOUT" : "UNAVAILABLE" });
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: Math.max(1, context.locationAcquisitionTimeoutSeconds) * 1_000 },
+      );
+    };
+    requestLocation(0);
+    return () => { cancelled = true; if (retryTimer !== undefined) window.clearTimeout(retryTimer); };
   }, [context, result]);
   async function requestManual() { if (!result?.attemptId || !reason.trim()) return; setRequesting(true); try { const response = await api.manualRequest(result.attemptId, reason, newIdempotencyKey("manual")); setResult((current) => current ? { ...current, manualVerificationCase: response } : current); } catch (reasonValue) { setError(reasonValue); } finally { setRequesting(false); } }
   if (error) return <CheckInState title="Attendance could not be checked" description={apiErrorMessage(error, "We could not complete attendance. Your attendance has not been confirmed.")} tone="error"><Button variant="secondary" onClick={() => window.location.reload()}>Try again</Button></CheckInState>;
@@ -74,10 +90,17 @@ export function CheckInFlow() {
   if (context.state === "CLOSED") return <CheckInState title="Today's attendance session has ended" description="If you were physically present, please speak with the Course Representative or Administrator." />;
   if (context.state === "ALREADY_PRESENT" && context.attendanceRecord) return <CheckInState title="You're already checked in" description={`Your attendance was recorded at ${formatTime(context.attendanceRecord.checkedInAt)}. You can close this page.`} tone="success"><TextLink href="/history">View attendance history</TextLink></CheckInState>;
   if (context.deviceStatus !== "REGISTERED_BROWSER") return <CheckInState title="This browser needs approval" description="Your account is available, but attendance can only be recorded from an approved browser." tone="warning"><TextLink href="/profile">Request device change</TextLink></CheckInState>;
-  if (!result) return <CheckInState title="Verifying attendance…" description="Requesting your location. This should only take a moment." loading />;
+  if (!result) return <CheckInState title="Verifying attendance…" description={`Getting a precise GPS location. We will wait up to ${context.locationAcquisitionTimeoutSeconds} seconds and retry once if needed.`} loading />;
   if (result.outcome === "ATTENDANCE_RECORDED" || result.outcome === "ALREADY_CHECKED_IN") return <CheckInState title={result.outcome === "ALREADY_CHECKED_IN" ? "You're already checked in" : "You're present"} description={`Attendance was recorded at ${formatTime(result.serverTime)}. You can close this page.`} tone="success"><TextLink href="/history">View attendance history</TextLink></CheckInState>;
   const manualCase = result.manualVerificationCase;
-  return <CheckInState title={result.outcome === "LOCATION_UNCERTAIN" ? "Your attendance needs a quick review" : "We could not confirm your location"} description={result.outcome === "CLEARLY_REMOTE" ? "Attendance can only be recorded at the venue. If you are physically present, you can ask for a manual review." : "Try again from the venue, or request a manual review if you are physically present."} tone="warning"><div className="space-y-4 text-left">{manualCase ? <Notice tone="info">A review case is already waiting. The Course Representative or Administrator will see it.</Notice> : result.manualRequestAllowed && result.attemptId ? <><TextArea label="Why were you physically present?" name="manual-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="For example: I am at the venue but my location signal is unavailable." /><Button onClick={requestManual} disabled={requesting || reason.trim().length < 3}>{requesting ? "Requesting…" : "Request manual verification"}</Button></> : null}<Button variant="secondary" onClick={() => window.location.reload()}>Try again</Button></div></CheckInState>;
+  const locationMessage = result.outcome === "LOCATION_TIMEOUT"
+    ? "Your phone did not provide a GPS fix in time. Turn on precise location, move near a window or outdoors, and try again."
+    : result.outcome === "LOCATION_PERMISSION_DENIED"
+      ? "Location permission was not granted. Allow precise location for this site and try again."
+      : result.outcome === "CLEARLY_REMOTE"
+        ? "Attendance can only be recorded at the venue. If you are physically present, you can ask for a manual review."
+        : "Try again from the venue, or request a manual review if you are physically present.";
+  return <CheckInState title={result.outcome === "LOCATION_UNCERTAIN" ? "Your attendance needs a quick review" : "We could not confirm your location"} description={locationMessage} tone="warning"><div className="space-y-4 text-left">{manualCase ? <Notice tone="info">A review case is already waiting. The Course Representative or Administrator will see it.</Notice> : result.manualRequestAllowed && result.attemptId ? <><TextArea label="Why were you physically present?" name="manual-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="For example: I am at the venue but my location signal is unavailable." /><Button onClick={requestManual} disabled={requesting || reason.trim().length < 3}>{requesting ? "Requesting…" : "Request manual verification"}</Button></> : null}<Button variant="secondary" onClick={() => window.location.reload()}>Try again</Button></div></CheckInState>;
 }
 
 type CheckInResultState = import("../lib/types").CheckInResult | null;

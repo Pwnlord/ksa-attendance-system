@@ -64,7 +64,7 @@ Key information:
 - Course label and status.
 - Explicit IANA timezone, initially `Africa/Lagos`.
 - Venue latitude and longitude.
-- Configurable geofence radius (initially 200 m), automatic-acceptance accuracy threshold (initially 150 m), clearly-remote boundary (initially 500 m), 30-second reading freshness, and 10-second acquisition timeout.
+- Configurable geofence radius (initially 200 m), automatic-acceptance accuracy threshold (initially 150 m), clearly-remote boundary (initially 500 m), 30-second reading freshness, and 30-second browser acquisition timeout with one automatic retry.
 - Three-hour default session duration, manual-case 15-minute post-close grace period, session extension policy, and Admin-only reopening policy.
 - Google workbook identifier and synchronization settings.
 - Configurable photo retention of course end plus approximately 90 days, indefinite attendance/audit retention, rate-limit thresholds, and other operational policies.
@@ -187,7 +187,7 @@ Key information:
 - Location outcome, distance rounded to the nearest 25 m, reported accuracy, and policy version. Raw latitude/longitude is computed against the venue in-request and immediately discarded.
 - Idempotency/correlation identifiers.
 
-An attempt provides support, manual-review, and abuse-analysis context without becoming a final attendance record by itself. Fixes older than 30 seconds are discarded. With the initial configuration: accuracy up to 150 m and distance up to 200 m passes; accuracy up to 150 m and distance beyond 500 m clearly rejects; all other readings are uncertain. No fix within 10 seconds, denied permission, unavailable, or unsupported location is routed to an explicit manual request rather than automatic rejection.
+An attempt provides support, manual-review, and abuse-analysis context without becoming a final attendance record by itself. Fixes older than 30 seconds are discarded. With the initial configuration: accuracy up to 150 m and distance up to 200 m passes; accuracy up to 150 m and distance beyond 500 m clearly rejects; all other readings are uncertain. No fix within 30 seconds on each of up to two browser attempts, denied permission, unavailable, or unsupported location is routed to an explicit manual request rather than automatic rejection.
 
 ### ManualVerificationCase
 
