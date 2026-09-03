@@ -20,5 +20,6 @@ jobs:
         run: >-
           curl --fail --silent --show-error --retry 3 --retry-delay 5
           --max-time 45
+          --request POST
           -H "x-job-runner-secret: ${JOB_RUNNER_SECRET}"
           "${JOB_RUNNER_URL}"
