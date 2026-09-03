@@ -44,9 +44,18 @@ function validateOrigin(
 export function validateEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const errors: string[] = [];
   const environment = env.NODE_ENV ?? "development";
+  const deploymentProfile = env.DEPLOYMENT_PROFILE ?? "standard";
+  const jobRunnerMode = env.JOB_RUNNER_MODE ?? "worker";
 
   if (!environmentValues.has(environment)) {
     errors.push(`NODE_ENV must be one of: ${[...environmentValues].join(", ")}`);
+  }
+
+  if (deploymentProfile !== "standard" && deploymentProfile !== "zero-cost") {
+    errors.push("DEPLOYMENT_PROFILE must be standard or zero-cost");
+  }
+  if (jobRunnerMode !== "worker" && jobRunnerMode !== "endpoint") {
+    errors.push("JOB_RUNNER_MODE must be worker or endpoint");
   }
 
   const databaseUrl = requireValue(env, "DATABASE_URL", errors);
@@ -59,6 +68,32 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   positiveInteger(env, "SESSION_IDLE_DAYS", 30, errors);
   positiveInteger(env, "SESSION_ABSOLUTE_DAYS", 90, errors);
   positiveInteger(env, "R2_PRESIGNED_URL_TTL_SECONDS", 300, errors);
+
+  const databaseSsl = env.DATABASE_SSL ?? "false";
+  if (databaseSsl !== "true" && databaseSsl !== "false") {
+    errors.push("DATABASE_SSL must be true or false");
+  }
+  const databaseSslVerification = env.DATABASE_SSL_REJECT_UNAUTHORIZED ?? "true";
+  if (databaseSslVerification !== "true" && databaseSslVerification !== "false") {
+    errors.push("DATABASE_SSL_REJECT_UNAUTHORIZED must be true or false");
+  }
+
+  if (jobRunnerMode === "endpoint" && (environment === "staging" || environment === "production")) {
+    const secret = requireValue(env, "JOB_RUNNER_SECRET", errors);
+    if (secret && secret.length < 32)
+      errors.push("JOB_RUNNER_SECRET must be at least 32 characters");
+  }
+  if (deploymentProfile === "zero-cost") {
+    if (jobRunnerMode !== "endpoint") {
+      errors.push("JOB_RUNNER_MODE must be endpoint for the zero-cost deployment profile");
+    }
+    if (env.STORAGE_DRIVER !== "supabase") {
+      errors.push("STORAGE_DRIVER must be supabase for the zero-cost deployment profile");
+    }
+    if (env.DATABASE_SSL !== "true") {
+      errors.push("DATABASE_SSL must be true for the zero-cost deployment profile");
+    }
+  }
 
   const trustedOrigins = (env.TRUSTED_ORIGINS ?? "")
     .split(",")
@@ -107,6 +142,17 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     requireValue(env, "RESEND_FROM_EMAIL", errors);
   }
 
+  const storageDriver = env.STORAGE_DRIVER ?? "memory";
+  if (!["memory", "r2", "supabase"].includes(storageDriver)) {
+    errors.push("STORAGE_DRIVER must be memory, r2, or supabase");
+  }
+  if (storageDriver === "supabase") {
+    const supabaseUrl = requireValue(env, "SUPABASE_URL", errors);
+    if (supabaseUrl) validateOrigin(supabaseUrl, "SUPABASE_URL", errors, true);
+    requireValue(env, "SUPABASE_SERVICE_ROLE_KEY", errors);
+    requireValue(env, "SUPABASE_STORAGE_BUCKET", errors);
+  }
+
   for (const name of ["SESSION_COOKIE_NAME", "ATTENDANCE_DEVICE_COOKIE_NAME"]) {
     const value =
       env[name] ?? (name === "SESSION_COOKIE_NAME" ? "ksa_session" : "ksa_attendance_device");
@@ -115,6 +161,7 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   }
 
   if (environment === "production") {
+    if (env.DATABASE_SSL !== "true") errors.push("DATABASE_SSL must be true in production");
     if (env.COOKIE_SECURE !== "true") errors.push("COOKIE_SECURE must be true in production");
     if (!env.TRUSTED_ORIGINS?.trim()) errors.push("TRUSTED_ORIGINS is required in production");
     if (!env.PUBLIC_APP_URL?.trim()) errors.push("PUBLIC_APP_URL is required in production");
@@ -136,15 +183,19 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     if (env.GOOGLE_SHEETS_DRIVER !== "google")
       errors.push("GOOGLE_SHEETS_DRIVER must be google in production");
     if (!env.SENTRY_DSN?.trim()) errors.push("SENTRY_DSN is required in production");
-    if (env.STORAGE_DRIVER !== "r2") errors.push("STORAGE_DRIVER must be r2 in production");
-    for (const name of [
-      "R2_ACCOUNT_ID",
-      "R2_ACCESS_KEY_ID",
-      "R2_SECRET_ACCESS_KEY",
-      "R2_BUCKET",
-      "R2_ENDPOINT",
-    ]) {
-      requireValue(env, name, errors);
+    if (storageDriver === "memory") {
+      errors.push("STORAGE_DRIVER must be supabase or r2 in production");
+    }
+    if (storageDriver === "r2") {
+      for (const name of [
+        "R2_ACCOUNT_ID",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+        "R2_BUCKET",
+        "R2_ENDPOINT",
+      ]) {
+        requireValue(env, name, errors);
+      }
     }
     requireValue(env, "AUTH_TOKEN_ENCRYPTION_KEY", errors);
     if (

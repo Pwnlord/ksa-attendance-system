@@ -1423,6 +1423,46 @@ paths:
         "409":
           $ref: "#/components/responses/ConflictError"
 
+  /internal/jobs/run:
+    post:
+      tags: [Operations]
+      summary: Process one bounded batch of due background jobs for the zero-cost deployment
+      description: This endpoint is disabled unless JOB_RUNNER_MODE is endpoint. It is called by the free scheduler and must never be exposed to a browser client.
+      security:
+        - jobRunnerSecret: []
+      parameters:
+        - name: x-job-runner-secret
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      responses:
+        "200":
+          description: Bounded batch processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRunEnvelope"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+
+  /admin/jobs/run:
+    post:
+      tags: [Operations]
+      summary: Manually process one bounded batch of due background jobs
+      responses:
+        "200":
+          description: Bounded batch processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRunEnvelope"
+        "401":
+          $ref: "#/components/responses/AuthenticationError"
+        "403":
+          $ref: "#/components/responses/AuthorizationError"
+
   /admin/sheets/health:
     get:
       tags: [Operations]
@@ -1499,6 +1539,11 @@ components:
       in: cookie
       name: __Host-ksa_session
       description: Secure, HttpOnly, host-only, SameSite=Lax server session; raw value is never stored. Idle expiry is 30 days and absolute expiry is 90 days.
+    jobRunnerSecret:
+      type: apiKey
+      in: header
+      name: x-job-runner-secret
+      description: Backend-only secret for the zero-cost scheduled job endpoint. Never place it in browser code.
 
   parameters:
     IdempotencyKey:
@@ -2555,6 +2600,24 @@ components:
         provider:
           type: string
           enum: [memory, google]
+
+    JobRunEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [claimed, succeeded, failed]
+          properties:
+            claimed:
+              type: integer
+              minimum: 0
+            succeeded:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
 
     DeviceStatus:
       type: object

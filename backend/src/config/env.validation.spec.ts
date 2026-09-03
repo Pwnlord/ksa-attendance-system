@@ -37,6 +37,35 @@ describe("validateEnvironment", () => {
     ).toThrow("SESSION_COOKIE_NAME contains invalid cookie-name characters");
   });
 
+  it("accepts the zero-cost deployment profile with Supabase and an endpoint runner", () => {
+    const environment = developmentEnvironment({
+      NODE_ENV: "staging",
+      DEPLOYMENT_PROFILE: "zero-cost",
+      DATABASE_SSL: "true",
+      JOB_RUNNER_MODE: "endpoint",
+      JOB_RUNNER_SECRET: "s".repeat(32),
+      STORAGE_DRIVER: "supabase",
+      SUPABASE_URL: "https://project.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_STORAGE_BUCKET: "attendance-photos-staging",
+    });
+
+    expect(validateEnvironment(environment)).toEqual(environment);
+  });
+
+  it("does not allow the old paid topology in the zero-cost profile", () => {
+    expect(() =>
+      validateEnvironment(
+        developmentEnvironment({
+          NODE_ENV: "staging",
+          DEPLOYMENT_PROFILE: "zero-cost",
+          STORAGE_DRIVER: "r2",
+          JOB_RUNNER_MODE: "worker",
+        }),
+      ),
+    ).toThrow("JOB_RUNNER_MODE must be endpoint for the zero-cost deployment profile");
+  });
+
   it("requires real production integrations and HTTPS origins", () => {
     expect(() =>
       validateEnvironment(

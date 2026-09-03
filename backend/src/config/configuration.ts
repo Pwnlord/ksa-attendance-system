@@ -2,6 +2,7 @@ export type RuntimeEnvironment = "development" | "test" | "staging" | "productio
 
 export interface AppConfig {
   environment: RuntimeEnvironment;
+  deploymentProfile: "standard" | "zero-cost";
   port: number;
   apiPrefix: string;
   trustedOrigins: string[];
@@ -9,6 +10,8 @@ export interface AppConfig {
   apiDocsEnabled: boolean;
   databaseUrl: string;
   databasePoolMax: number;
+  databaseSsl: boolean;
+  databaseSslRejectUnauthorized: boolean;
   sessionCookieName: string;
   attendanceDeviceCookieName: string;
   cookieSecure: boolean;
@@ -16,8 +19,10 @@ export interface AppConfig {
   sessionAbsoluteDays: number;
   tokenEncryptionKey?: string;
   jobQueueDriver: "postgres";
+  jobRunnerMode: "worker" | "endpoint";
+  jobRunnerSecret?: string;
   emailDriver: "memory" | "resend";
-  storageDriver: "memory" | "r2";
+  storageDriver: "memory" | "r2" | "supabase";
   r2: {
     accountId?: string;
     accessKeyId?: string;
@@ -25,6 +30,11 @@ export interface AppConfig {
     bucket?: string;
     endpoint?: string;
     presignedUrlTtlSeconds: number;
+  };
+  supabase: {
+    url?: string;
+    serviceRoleKey?: string;
+    bucket?: string;
   };
   resend: {
     apiKey?: string;
@@ -67,6 +77,7 @@ function booleanFrom(value: string | undefined, fallback: boolean): boolean {
 export default (): { app: AppConfig } => ({
   app: {
     environment: (process.env.NODE_ENV ?? "development") as RuntimeEnvironment,
+    deploymentProfile: process.env.DEPLOYMENT_PROFILE === "zero-cost" ? "zero-cost" : "standard",
     port: numberFrom(process.env.PORT, 3001),
     apiPrefix: process.env.API_PREFIX ?? "api/v1",
     trustedOrigins: csv(process.env.TRUSTED_ORIGINS).map(normalizedOrigin),
@@ -77,6 +88,8 @@ export default (): { app: AppConfig } => ({
     ),
     databaseUrl: process.env.DATABASE_URL ?? "",
     databasePoolMax: numberFrom(process.env.DATABASE_POOL_MAX, 10),
+    databaseSsl: booleanFrom(process.env.DATABASE_SSL, false),
+    databaseSslRejectUnauthorized: booleanFrom(process.env.DATABASE_SSL_REJECT_UNAUTHORIZED, true),
     sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "ksa_session",
     attendanceDeviceCookieName:
       process.env.ATTENDANCE_DEVICE_COOKIE_NAME ?? "ksa_attendance_device",
@@ -85,8 +98,15 @@ export default (): { app: AppConfig } => ({
     sessionAbsoluteDays: numberFrom(process.env.SESSION_ABSOLUTE_DAYS, 90),
     tokenEncryptionKey: process.env.AUTH_TOKEN_ENCRYPTION_KEY,
     jobQueueDriver: "postgres",
+    jobRunnerMode: process.env.JOB_RUNNER_MODE === "endpoint" ? "endpoint" : "worker",
+    jobRunnerSecret: process.env.JOB_RUNNER_SECRET,
     emailDriver: process.env.EMAIL_DRIVER === "resend" ? "resend" : "memory",
-    storageDriver: process.env.STORAGE_DRIVER === "r2" ? "r2" : "memory",
+    storageDriver:
+      process.env.STORAGE_DRIVER === "r2"
+        ? "r2"
+        : process.env.STORAGE_DRIVER === "supabase"
+          ? "supabase"
+          : "memory",
     r2: {
       accountId: process.env.R2_ACCOUNT_ID,
       accessKeyId: process.env.R2_ACCESS_KEY_ID,
@@ -94,6 +114,11 @@ export default (): { app: AppConfig } => ({
       bucket: process.env.R2_BUCKET,
       endpoint: process.env.R2_ENDPOINT,
       presignedUrlTtlSeconds: numberFrom(process.env.R2_PRESIGNED_URL_TTL_SECONDS, 300),
+    },
+    supabase: {
+      url: process.env.SUPABASE_URL,
+      serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      bucket: process.env.SUPABASE_STORAGE_BUCKET,
     },
     resend: {
       apiKey: process.env.RESEND_API_KEY,

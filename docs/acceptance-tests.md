@@ -132,7 +132,7 @@ Only an Administrator can perform a historical correction. A reason is mandatory
 - Invalid media, oversized files, and deceptive extensions are rejected.
 - Inputs over 8 MB are rejected. Accepted images are resized to at most 1600 px longest edge, re-encoded as JPEG quality 85, and stripped of EXIF.
 - Direct public access is impossible.
-- Processed objects use randomized private R2 keys. Authorized review access is scoped through a presigned URL lasting only a few minutes.
+- Processed objects use randomized keys in the configured private storage provider. The zero-cost profile uses Supabase Storage and the legacy paid profile uses R2. Authorized review access is scoped through a signed URL lasting only a few minutes.
 - Photos and storage keys do not appear in Google Sheets or ordinary logs.
 
 ### AT-016 Failure before database commit
@@ -185,11 +185,14 @@ Given a roster entry with an `enrollmentEffectiveDate`, every earlier session is
 
 ### AT-023 Deployment, jobs, retention, and observability
 
-- Production frontend and `/api/*` appear under one custom HTTPS origin while Next.js and NestJS remain separate Render services in Frankfurt.
+- The zero-cost deployment creates only Free Render frontend/API web services in Frankfurt, uses a Supabase Free database and private Storage bucket, and contains no Render database, paid resource, or Render worker.
+- The browser sees one HTTPS application origin while Next.js proxies `/api/*` to the API's public HTTPS URL.
 - Login/device cookies are Secure, HttpOnly, host-only, and SameSite=Lax; raw `onrender.com` cross-site cookies are not used.
-- PostgreSQL-backed jobs survive API/worker restarts and require no Redis.
+- PostgreSQL-backed jobs survive API restarts and require no Redis. A protected one-shot endpoint processes due jobs through a free scheduled workflow, and an Administrator can trigger a bounded manual run.
+- Email, Sheets, session-lifecycle, manual-case, and photo-retention jobs remain retryable when the scheduler or a provider is unavailable.
+- Database migrations and exports have an explicit controlled-machine procedure because Free Render does not run the paid pre-deploy migration step.
 - Google access uses a dedicated least-privilege service account and a credential swap does not require application code changes.
-- Sentry receives sanitized errors with session replay disabled and no participant-sensitive fields; Render health checks and logs expose operational failure safely.
+- Sentry receives sanitized errors with session replay disabled and no participant-sensitive fields; Render health checks/logs and scheduled-job results expose operational failure safely.
 - Photo-retention work is observable and retryable; attendance/audit records remain indefinitely and raw coordinates never exist in persistence.
 
 ## Required unit coverage

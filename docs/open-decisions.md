@@ -44,6 +44,7 @@ Statuses: `DECIDED` is approved for implementation. `DEFERRED` is intentionally 
 | DEC-034 | Course Rep count | DECIDED: Exactly one active Course Representative. | Product Owner | Foundation |
 | DEC-035 | Multi-course/multi-tenant support | DEFERRED: Keep boundaries clean but do not build multi-course or enterprise tenancy in MVP. | Product Owner | Post-MVP |
 | DEC-036 | Rate-limit thresholds | DECIDED: Failed login 5 per 15 minutes per account+IP; password reset 3/hour per email; registration 50/hour per IP and 5/hour per email/serial; attendance 10/minute per account; privileged Admin actions 20/minute. Use progressive delay rather than permanent lockout, generic recovery responses, idempotent duplicate attendance, `429` plus safe `Retry-After`, sanitized anomaly logs, configurable thresholds, and a temporary Admin increase for planned onboarding. | Security/Engineering | Auth |
+| DEC-037 | Zero-cost deployment profile | DECIDED: Staging, the controlled pilot, and the intended production deployment must use only free-tier services. Use Free Render frontend/API web services, Supabase Free PostgreSQL/private Storage, and a protected bounded job-runner endpoint called by a free scheduled workflow with an Administrator fallback. Do not create a paid Render resource, Render database, or Render worker. Keep the standalone worker and R2 adapter as a reversible legacy profile. This supersedes the active deployment portions of DEC-010, DEC-027, and DEC-031. | Product Owner/Engineering | Deployment |
 
 ## Change control
 

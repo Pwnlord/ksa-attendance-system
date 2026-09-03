@@ -40,7 +40,7 @@ The application database is authoritative. The permanent QR is a public route, a
 └── README.md
 ```
 
-PostgreSQL is authoritative. The production topology uses separate frontend, backend, worker, and managed PostgreSQL services on Render Frankfurt, private Cloudflare R2 storage, Resend email, sanitized Sentry tracking, and one custom origin that routes `/api/*` to the backend.
+PostgreSQL is authoritative. The active zero-cost topology uses separate Free frontend and backend web services on Render Frankfurt, Supabase Free PostgreSQL/private Storage, Resend free allowance, sanitized Sentry tracking, a free scheduled job-runner endpoint, and one public origin that routes `/api/*` to the backend. The standalone worker/R2/Render-Postgres topology remains a documented reversible profile only.
 
 ## Delivery strategy
 
@@ -68,7 +68,7 @@ flowchart LR
 ### Work
 
 - Review the PRD and documentation set with the product owner.
-- Adopt the approved foundation decisions in `open-decisions.md`: Next.js, NestJS, PostgreSQL/Drizzle, server sessions, private R2, PostgreSQL-backed jobs, Render, Resend, and Sentry.
+- Adopt the approved foundation decisions in `open-decisions.md`: Next.js, NestJS, PostgreSQL/Drizzle, server sessions, private storage, PostgreSQL-backed jobs, Render, Resend, and Sentry. Apply DEC-037's hard no-paid-services constraint to the active deployment profile.
 - Adopt the approved registration, roster, photo, timezone, session, geofence, manual-review, reporting, retention, and rate-limit policies.
 - Confirm the domain vocabulary, state transitions, permission matrix, API naming, and error codes.
 - Create architecture decision records for material choices.
@@ -119,7 +119,7 @@ Stakeholders can complete the core journeys without unresolved navigation, copy,
 - Connect PostgreSQL through Drizzle and establish reviewed migration discipline.
 - Implement structured errors, correlation IDs, sanitized logging, health checks, and configuration validation.
 - Establish hashed server sessions (30-day idle/90-day absolute), separate persistent attendance-device cookies, same-origin CSRF/origin controls, DEC-036 rate limits, and security headers.
-- Establish private Cloudflare R2 and PostgreSQL-backed queue interfaces, initially with test adapters; the worker is a separate process and Redis is excluded.
+- Establish private storage and PostgreSQL-backed queue interfaces, initially with test adapters; the active zero-cost profile uses Supabase Storage and a bounded scheduled runner, while the standalone worker and R2 adapter remain reversible options. Redis is excluded.
 - Implement a secure one-time bootstrap-Administrator command/process.
 - Generate OpenAPI through `@nestjs/swagger` and validate it against this implementation baseline.
 - Add sanitized Sentry instrumentation with replay disabled, Render-compatible health checks, worker heartbeat/backlog health, and sensitive-field filtering.
@@ -134,7 +134,7 @@ Stakeholders can complete the core journeys without unresolved navigation, copy,
 - NestJS runtime with generated Swagger/OpenAPI foundation.
 - Drizzle domain-skeleton schema with reviewed initial migration and database constraints.
 - Hashed login-session and separate attendance-device credential services.
-- PostgreSQL-backed durable job port/adapter and private-storage port with memory/R2 adapters.
+- PostgreSQL-backed durable job port/adapter and private-storage port with memory/Supabase adapters plus the reversible R2 adapter.
 - One-time, non-public Administrator bootstrap command.
 
 ### Exit gate
@@ -152,7 +152,7 @@ The service can start from documented steps, migrate a blank test database, run 
 - Implement participant registration against an eligible unclaimed roster entry and normalize name, unique phone, email, and exact `KSA-XX` serial.
 - Enforce unique normalized email, phone, and serial; keep the pilot first-claim mode explicit and Admin-reviewed.
 - Hash passwords with Argon2id. Queue Resend verification email; do not gate attendance on verification and allow self-service recovery only for verified email.
-- Enforce the 8 MB photo limit; decode safely, resize to 1600 px longest edge, re-encode JPEG quality 85, strip EXIF, and store under a randomized private R2 key.
+- Enforce the 8 MB photo limit; decode safely, resize to 1600 px longest edge, re-encode JPEG quality 85, strip EXIF, and store under a randomized key in the active private storage provider.
 - Register the current browser as the participant's first active attendance device.
 - Authenticate after registration and preserve check-in return intent.
 - Implement backend authorization policies and immediate role revocation.
@@ -259,7 +259,7 @@ The production frontend matches approved flows, consumes documented APIs, and pa
 
 - Perform threat modeling and verify current framework/OWASP guidance for the approved stack.
 - Verify HTTPS, cookies, CSRF/origin behavior, CORS, CSP/headers, redirects, rate limits, session rotation, and safe errors in a production-like environment.
-- Verify private photo access, retention, backup sensitivity, and deletion tasks.
+- Verify private Supabase Storage access in the active zero-cost profile (and the reversible R2 adapter separately if that profile is exercised), retention, backup sensitivity, and deletion tasks.
 - Verify audit completeness and absence of secrets/coordinates in logs and Sheets.
 - Verify sanitized Sentry error tracking with session replay disabled plus Render logs/health checks, job alerts, database/storage health, backup automation, and restore drills.
 - Verify course-end-plus-90-day photo deletion and indefinite attendance/audit retention without retaining raw coordinates.
@@ -278,7 +278,7 @@ Phase 9 is split into three gates so real-participant testing never begins befor
 
 ### Gate 1 — Staging
 
-- Deploy separate frontend, backend, worker, and managed PostgreSQL staging services on Render Frankfurt.
+- Deploy only Free frontend and backend web services on Render Frankfurt. Use Supabase Free PostgreSQL/private Storage, the protected one-shot job endpoint, and the free scheduled workflow; do not create a Render database or worker.
 - Configure separate private storage, test email, test Google workbook, Sentry, HTTPS, same-origin `/api/*` routing, and secrets.
 - Run the acceptance, security, accessibility, device, backup/restore, outage/retry, and operator checks.
 - Approve the controlled pilot only after staging evidence is recorded.

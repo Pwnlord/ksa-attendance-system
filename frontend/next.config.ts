@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const configuredBackendTarget = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:3001";
+const configuredBackendTarget =
+  process.env.BACKEND_PUBLIC_URL ?? process.env.BACKEND_INTERNAL_URL ?? "http://localhost:3001";
 const backendTarget = /^https?:\/\//i.test(configuredBackendTarget)
   ? configuredBackendTarget.replace(/\/$/, "")
   : `http://${configuredBackendTarget.replace(/\/$/, "")}`;

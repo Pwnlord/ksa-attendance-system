@@ -1,42 +1,37 @@
-# Staging-only Render Blueprint for the KSA Attendance System.
+# Zero-cost deployment profile for the KSA Attendance System.
 #
-# This file intentionally creates resources whose names include "staging".
-# Production must use separately named resources and separately managed secrets.
-# Do not put credential values in this file.
+# This Blueprint intentionally creates only Free Render web services. PostgreSQL
+# and private photo storage are supplied by the project's Supabase Free project.
+# There is no Render database, paid service, or Render background worker here.
+# Do not add a paid resource to this file without an explicit superseding decision.
 
 previews:
   generation: off
-
-databases:
-  - name: ksa-attendance-staging-db
-    plan: 0.1c-256mb
-    region: frankfurt
-    postgresMajorVersion: "16"
-    databaseName: ksa_attendance_staging
-    user: ksa_attendance
-    ipAllowList: []
 
 services:
   - type: web
     name: ksa-attendance-staging-api
     runtime: node
-    # Paid minimum is required for pre-deploy migrations and private-network
-    # access from the frontend service.
-    plan: 0.5c-512mb
+    plan: free
     region: frankfurt
     rootDir: backend
     buildCommand: npm ci && npm run build
-    preDeployCommand: npm run db:migrate
     startCommand: npm start
     autoDeployTrigger: off
     healthCheckPath: /api/v1/health/ready
     envVars:
       - key: NODE_ENV
         value: staging
+      - key: DEPLOYMENT_PROFILE
+        value: zero-cost
       - key: DATABASE_URL
-        fromDatabase:
-          name: ksa-attendance-staging-db
-          property: connectionString
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: DATABASE_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: DATABASE_POOL_MAX
+        value: "5"
       - key: COOKIE_SECURE
         value: "true"
       - key: API_DOCS_ENABLED
@@ -47,75 +42,18 @@ services:
         sync: false
       - key: AUTH_TOKEN_ENCRYPTION_KEY
         sync: false
-      - key: STORAGE_DRIVER
-        value: r2
-      - key: R2_ACCOUNT_ID
-        sync: false
-      - key: R2_ACCESS_KEY_ID
-        sync: false
-      - key: R2_SECRET_ACCESS_KEY
-        sync: false
-      - key: R2_BUCKET
-        sync: false
-      - key: R2_ENDPOINT
-        sync: false
-      - key: R2_PRESIGNED_URL_TTL_SECONDS
-        value: "300"
-      - key: EMAIL_DRIVER
-        value: resend
-      - key: RESEND_API_KEY
-        sync: false
-      - key: RESEND_FROM_EMAIL
-        sync: false
-      - key: GOOGLE_SHEETS_DRIVER
-        value: google
-      - key: GOOGLE_SHEETS_SPREADSHEET_ID
-        sync: false
-      - key: GOOGLE_SERVICE_ACCOUNT_EMAIL
-        sync: false
-      - key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
-
-  - type: worker
-    name: ksa-attendance-staging-worker
-    runtime: node
-    plan: 0.5c-512mb
-    region: frankfurt
-    rootDir: backend
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start:worker
-    autoDeployTrigger: off
-    envVars:
-      - key: NODE_ENV
-        value: staging
-      - key: DATABASE_URL
-        fromDatabase:
-          name: ksa-attendance-staging-db
-          property: connectionString
-      - key: COOKIE_SECURE
-        value: "true"
-      - key: API_DOCS_ENABLED
-        value: "false"
-      - key: PUBLIC_APP_URL
-        sync: false
-      - key: AUTH_TOKEN_ENCRYPTION_KEY
+      - key: JOB_RUNNER_MODE
+        value: endpoint
+      - key: JOB_RUNNER_SECRET
         sync: false
       - key: STORAGE_DRIVER
-        value: r2
-      - key: R2_ACCOUNT_ID
+        value: supabase
+      - key: SUPABASE_URL
         sync: false
-      - key: R2_ACCESS_KEY_ID
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: R2_SECRET_ACCESS_KEY
+      - key: SUPABASE_STORAGE_BUCKET
         sync: false
-      - key: R2_BUCKET
-        sync: false
-      - key: R2_ENDPOINT
-        sync: false
-      - key: R2_PRESIGNED_URL_TTL_SECONDS
-        value: "300"
       - key: EMAIL_DRIVER
         value: resend
       - key: RESEND_API_KEY
@@ -144,8 +82,5 @@ services:
     autoDeployTrigger: off
     healthCheckPath: /login
     envVars:
-      - key: BACKEND_INTERNAL_URL
-        fromService:
-          name: ksa-attendance-staging-api
-          type: web
-          property: hostport
+      - key: BACKEND_PUBLIC_URL
+        sync: false

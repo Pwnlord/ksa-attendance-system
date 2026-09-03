@@ -13,13 +13,13 @@ The PRD and approved decisions remain authoritative. This document translates th
 | Local development | Build and automated verification | Local PostgreSQL; fictional data; memory Sheets/storage/email providers where supported | No |
 | Staging | Deployment, integration, security, and accessibility testing | Separate database, private test storage, test email sender, test workbook, synthetic participants | Restricted to the team |
 | Pilot | Limited real-world venue verification | Production-like services with approved pilot data and a controlled participant group | Approved pilot users only |
-| Production | Normal Academy attendance | Managed production PostgreSQL, private R2, Resend, Kora-approved Google service account/workbook, Sentry, and worker | Yes |
+| Production | Normal Academy attendance | Free-tier deployment profile: Supabase PostgreSQL/private Storage, Render Free frontend/API, free scheduled job runner, Resend, Kora-approved Google service account/workbook, and Sentry free allowance | Yes, subject to the documented free-tier limits |
 
 Every environment must have separate secrets, database credentials, photo storage, email configuration, and Google workbook access. Staging or local data must not be copied into production without an explicit approved process.
 
 ## Approved production topology
 
-Render Frankfurt hosts separate services for the Next.js frontend, NestJS backend, and PostgreSQL-backed background worker, plus managed PostgreSQL. Cloudflare R2 stores private photos. Resend delivers email. Google Sheets is an asynchronous reporting projection, not the attendance source of truth.
+Render Frankfurt hosts separate Free services for the Next.js frontend and NestJS backend. Supabase Free supplies PostgreSQL and the private photo bucket. A protected bounded job endpoint is called by the free scheduled workflow and can be run by an Administrator. Resend delivers email. Google Sheets is an asynchronous reporting projection, not the attendance source of truth.
 
 Participants use one custom HTTPS origin. The frontend serves the application and proxies `/api/*` to the backend over the private service connection or equivalent. Authentication and attendance-device cookies remain Secure, HttpOnly, host-only, SameSite=Lax cookies. Raw `onrender.com` service URLs are not the participant-facing authentication topology.
 
@@ -27,9 +27,10 @@ Participants use one custom HTTPS origin. The frontend serves the application an
 
 Before production, the owner must identify the person responsible for each service:
 
-- Render project, service deploys, environment variables, health checks, and rollback.
-- Managed PostgreSQL backups, restore access, migrations, and database access review.
-- Cloudflare R2 private bucket, lifecycle rules, access keys, and photo-retention verification.
+- Render project, Free service deploys, environment variables, health checks, and rollback.
+- Supabase database exports, restore access, migrations, connection-pool settings, and database access review.
+- Supabase private Storage bucket, service-role access, and photo-retention verification.
+- GitHub Actions scheduled workflow, runner secret, manual-run fallback, and job-backlog review.
 - Resend sending domain, SPF/DKIM/DMARC, sender address, bounce handling, and email templates.
 - Kora-owned Google Cloud service account with access only to the approved workbook. Credential handoff must be a configuration change, not a code change.
 - Sentry project with replay disabled, sensitive-field filtering, alert ownership, and retention settings.
@@ -47,7 +48,7 @@ Before production, the owner must identify the person responsible for each servi
 
 ### 2. Create staging
 
-- Create separate Render services and a separate managed staging database.
+- Create separate Free Render web services and a separate Supabase Free staging project.
 - Configure staging secrets only in the host's secret manager/environment settings.
 - Run reviewed migrations and bootstrap a staging Administrator through the secure CLI/deployment process.
 - Configure synthetic roster entries, private test photos, test email, and a test workbook.
@@ -62,12 +63,12 @@ Record results, defects, owners, and evidence. A passing build alone is not evid
 ### 4. Prepare production services
 
 - Create the production Render project in Frankfurt and set the Node/runtime versions explicitly.
-- Create the managed PostgreSQL database, backups, access restrictions, and restore procedure.
-- Configure private R2 storage and verify its public-access posture.
+- Create the production Supabase project, manual export/restore procedure, access restrictions, and connection settings.
+- Configure Supabase private Storage and verify its public-access posture.
 - Configure Resend sending-domain authentication and production-safe templates.
 - Create or receive the Kora-owned Google service-account credential and share only the target workbook.
 - Configure Sentry filtering, replay disabled, alerts, and Render health checks/logs.
-- Set production environment values, including `COOKIE_SECURE=true`, production origins, storage/email/Sheets drivers, encryption keys, and database URLs. Never commit these values.
+- Set production environment values, including `DEPLOYMENT_PROFILE=zero-cost`, `JOB_RUNNER_MODE=endpoint`, `COOKIE_SECURE=true`, production origins, Supabase storage/email/Sheets drivers, encryption keys, and database URLs. Never commit these values.
 
 ### 5. Migrate and seed controlled data
 
@@ -112,7 +113,7 @@ Each production release should retain:
 
 As of 2026-09-03:
 
-- Local backend, database, worker, mockup, and core production frontend are implemented and locally verified.
+- Local backend, database, standalone worker, mockup, and core production frontend are implemented and locally verified. The zero-cost runner path is implemented locally and remains to be deployment-verified.
 - The local frontend has passing lint, typecheck, production build, and two Chromium smoke tests.
 - Local Sheets verification uses the memory provider; no production Google credential was used.
 - Staging and production services, domain, live third-party credentials, venue pilot, and final security release gate are not yet complete.

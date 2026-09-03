@@ -2,7 +2,7 @@
 
 ## Authority
 
-This document operationalizes the PRD security contract. At implementation time, the approved stack must be checked against current OWASP Top 10, OWASP ASVS, NestJS, Next.js, PostgreSQL, Drizzle, Cloudflare R2, Resend, Sentry, Render, and Google API guidance. A framework default is not accepted blindly when it conflicts with the rules below.
+This document operationalizes the PRD security contract. At implementation time, the approved stack must be checked against current OWASP Top 10, OWASP ASVS, NestJS, Next.js, PostgreSQL, Drizzle, Supabase Storage/R2, Resend, Sentry, Render, GitHub Actions, and Google API guidance. A framework default is not accepted blindly when it conflicts with the rules below.
 
 Security controls must preserve the product's WCAG 2.2 AA target; authentication, rate limiting, and recovery must not introduce inaccessible core flows.
 
@@ -13,7 +13,7 @@ Security controls must preserve the product's WCAG 2.2 AA target; authentication
 - The application backend is the authority for authentication, authorization, current session, server time, device recognition, geofence policy, duplicate handling, and final attendance.
 - PostgreSQL is the system of record; Drizzle migrations and PostgreSQL constraints implement durable invariants.
 - Google Sheets is an asynchronous reporting projection.
-- Identification-photo storage is a private Cloudflare R2 bucket separate from public application assets.
+- Identification-photo storage is a private object-storage bucket separate from public application assets. The active zero-cost profile uses Supabase Storage; the legacy paid profile may use Cloudflare R2.
 
 ## Authentication
 
@@ -58,7 +58,7 @@ Security controls must preserve the product's WCAG 2.2 AA target; authentication
 - Encode untrusted output and rely on safe framework rendering. Sanitize rich content if introduced.
 - Protect cookie-authenticated state changes against CSRF using the chosen framework's recommended token and/or origin strategy.
 - Validate allowed origins narrowly when CORS is required; wildcard credential origins are prohibited.
-- Production uses one custom public origin: the Next.js service proxies `/api/*` to NestJS over Render's private network or equivalent. Do not expose raw `onrender.com` cross-site authentication to users.
+- Production uses one public origin at the browser: the Next.js service proxies `/api/*` to NestJS. In the zero-cost profile the server-side proxy uses the API's public HTTPS URL because Free Render services cannot use private service networking. Do not expose raw cross-site authentication to users.
 - Validate return URLs to prevent open redirects.
 - Apply a restrictive Content Security Policy where practical, plus appropriate `X-Content-Type-Options`, `Referrer-Policy`, framing, and `Permissions-Policy` controls.
 - Rate-limit failed login to 5 per 15 minutes per account+IP, password reset to 3/hour per normalized email, registration to 50/hour per IP and 5/hour per email/serial, attendance submission to 10/minute per account, and privileged Admin actions to 20/minute. Count failed attempts where specified, use progressive delay rather than permanent account lockout, and make values configurable.
@@ -70,7 +70,7 @@ Security controls must preserve the product's WCAG 2.2 AA target; authentication
 - Validate actual media content, dimensions, and size rather than trusting extension or browser media type.
 - Reject uploads over 8 MB. Decode with resource limits, preserve orientation, resize without upscaling to at most 1600 px on the longest edge, re-encode to sRGB JPEG quality 85, and strip EXIF metadata.
 - Use randomized private storage keys; never derive a storage path directly from the original filename.
-- Store processed photos under randomized keys in private Cloudflare R2; PostgreSQL stores only the key and safe metadata.
+- Store processed photos under randomized keys in the configured private bucket; PostgreSQL stores only the key and safe metadata. The zero-cost profile uses Supabase Storage; a later provider switch requires copying objects while preserving keys.
 - Authorize every photo read and issue a presigned URL lasting only a few minutes for a legitimate review workflow.
 - Identification-photo replacement approval is Administrator-only; candidate and superseded versions remain private and auditable.
 - Do not expose photos to other participants or Google Sheets.
@@ -93,7 +93,7 @@ Security controls must preserve the product's WCAG 2.2 AA target; authentication
 - Never log passwords, password hashes, raw auth/session/device/reset tokens, service-account material, full sensitive request bodies, or unnecessary exact GPS traces.
 - Security monitoring may flag repeated login failures, blocked attendance, or device changes, but automated participant accusations are prohibited.
 - Send sanitized exceptions to Sentry and operational logs to Render. Disable Sentry session replay and strip participant names, serials, emails, phones, photos, coordinates, cookies, authorization headers, request bodies, signed URLs, and secrets before telemetry leaves the service.
-- Operations owns production health, error, and worker-backlog alerts and must maintain a documented escalation contact.
+- Operations owns production health, error, and job-backlog alerts and must maintain a documented escalation contact. In the zero-cost profile, the scheduler endpoint and its manual Administrator fallback are part of this operational responsibility.
 
 ## Secrets and third parties
 
@@ -124,4 +124,4 @@ Production use is blocked until:
 - Secrets scanning/configuration review finds no real credentials in source or client assets.
 - Database uniqueness, transactional device replacement, and no-success-before-commit behavior are proven.
 - Google Sheets outage and replay cannot lose or duplicate authoritative attendance.
-- Sentry filtering, disabled replay, Render health checks, worker/backlog visibility, and alert ownership are verified without participant-sensitive telemetry.
+- Sentry filtering, disabled replay, Render health checks, scheduled-job/backlog visibility, and alert ownership are verified without participant-sensitive telemetry. The one-shot runner accepts only a backend secret and returns no job payloads.

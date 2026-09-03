@@ -208,4 +208,4 @@ stateDiagram-v2
 
 Jobs use stable source keys. Repeating a job must produce one logical Sheet row/cell result. A worker outage or Google failure never changes a committed attendance record.
 
-The worker uses the PostgreSQL-backed queue and retries immediately, after a few seconds, then at approximately 1, 5, and 15 minutes, followed by 30–60 minute intervals with jitter. Persistent failures become visible to Administrators and can be retried or reconciled safely.
+The queue uses PostgreSQL and retries immediately, after a few seconds, then at approximately 1, 5, and 15 minutes, followed by 30–60 minute intervals with jitter. The legacy paid profile has a continuously polling worker; the zero-cost profile processes due jobs through a bounded scheduled/manual runner. Persistent failures become visible to Administrators and can be retried or reconciled safely.

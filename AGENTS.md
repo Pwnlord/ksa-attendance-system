@@ -43,7 +43,7 @@ This is a mobile-first web attendance system for an approximately 12-week Kora S
 - `context/` contains product source material and is not application code.
 - `docs/` contains implementation contracts, decisions, acceptance criteria, and the general plan. Keep these documents synchronized with behavior.
 - `mockup/` contains the text-first specification and later a static clickable prototype. It is a review artifact, not the production frontend.
-- `backend/` will contain the NestJS authoritative API, Drizzle/PostgreSQL persistence, PostgreSQL-backed jobs, R2 integration, authorization, audit, and domain rules.
+- `backend/` will contain the NestJS authoritative API, Drizzle/PostgreSQL persistence, PostgreSQL-backed jobs, private-storage adapters (Supabase for the active zero-cost profile and R2 for the reversible legacy profile), authorization, audit, and domain rules.
 - `frontend/` contains the production responsive web client. It consumes the backend through the same-origin `/api/*` rewrite and must not become an authority for attendance, session, device, role, or geofence decisions.
 
 Do not place real authentication, durable attendance logic, Google credentials, real participant information, or real identification photos in the mockup. A clickable mockup may simulate states using clearly fictional fixtures and reviewer-only scenario controls. It must not be presented as proof that backend security or data-integrity rules work.
@@ -66,6 +66,19 @@ The production frontend may guide users and hide unavailable controls, but it mu
 - Course Representatives cannot approve their own device replacement or use a manual bypass to approve their own attendance. Role administration is Admin-only.
 - Privileged and corrective actions are auditable. Never update historical/security-significant state without preserving actor, target, timestamp, reason where required, and before/after context.
 - A valid database commit determines attendance success. Never display success before it commits; never retract it because a Sheets job fails afterward.
+
+## Active zero-cost deployment constraint
+
+Staging, the controlled pilot, and the intended production deployment must use only free-tier
+services. Do not add or deploy a paid Render resource, paid database plan, paid worker, or required
+payment method unless the product owner explicitly records a superseding decision.
+
+The active deployment profile uses Free Render web services for the frontend and API, Supabase Free
+PostgreSQL and private Storage, and a protected bounded job-runner endpoint called by a free
+scheduled workflow with an Administrator fallback. The PostgreSQL queue and standalone worker
+implementation remain in the repository for reversibility, but a separate Render worker is not
+part of the active Blueprint. See [`docs/zero-cost-architecture-migration.md`](docs/zero-cost-architecture-migration.md)
+for the paid/free mapping and provider-switch procedure.
 
 ## Roles and Authorization
 
@@ -132,7 +145,7 @@ For geolocation:
 - Hash passwords with Argon2id. Never store or log plaintext passwords.
 - Use hashed, revocable server sessions with 30-day idle and 90-day absolute expiry. Generate separate attendance-device credentials with a cryptographically secure source, use protected host-only first-party cookies, and store only one-way server-side token hashes.
 - Keep credentials and service-account material out of source control, frontend bundles, logs, fixtures, screenshots, and error responses. Maintain a sanitized `.env.example` after configuration exists.
-- Treat identification photos as private sensitive data. Enforce 8 MB input, 1600 px longest-edge output, JPEG quality 85, EXIF removal, randomized private R2 keys, Admin-only replacement approval, and few-minute authorized signed URLs.
+- Treat identification photos as private sensitive data. Enforce 8 MB input, 1600 px longest-edge output, JPEG quality 85, EXIF removal, randomized keys in the configured private Supabase Storage/R2 provider, Admin-only replacement approval, and few-minute authorized signed URLs.
 - Never persist exact participant coordinates. Store only 25 m-rounded distance, reported accuracy, and outcome; never collect location continuously.
 - Make audit history append-oriented and inaccessible for mutation by ordinary operators.
 - Use least privilege for database, object storage, and Google integrations. Backups inherit production data sensitivity and retention requirements.

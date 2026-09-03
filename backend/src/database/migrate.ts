@@ -10,6 +10,10 @@ async function main(): Promise<void> {
     connectionString: process.env.DATABASE_URL,
     max: 2,
     application_name: "ksa-attendance-migrations",
+    ssl:
+      process.env.DATABASE_SSL === "true"
+        ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false" }
+        : undefined,
   });
 
   try {

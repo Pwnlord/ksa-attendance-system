@@ -55,6 +55,7 @@ import { CourseConfigService } from "./course-config.service";
     CourseConfigService,
     RateLimitService,
     PhotoService,
+    PhotoRetentionService,
     TokenProtectorService,
   ],
 })

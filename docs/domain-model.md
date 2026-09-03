@@ -129,7 +129,7 @@ Key information:
 - Upload and approval/replacement metadata.
 - Retention and deletion timestamps.
 
-Uploads are limited to 8 MB, resized to a maximum 1600 px longest edge, re-encoded as JPEG quality 85, and stripped of EXIF. The final object is private in Cloudflare R2. Original filenames, EXIF data, and public URLs are not authoritative fields; authorized reads use only a few-minute presigned URL.
+Uploads are limited to 8 MB, resized to a maximum 1600 px longest edge, re-encoded as JPEG quality 85, and stripped of EXIF. The final object is private in Supabase Storage in the zero-cost profile, or private Cloudflare R2 in the legacy paid profile. Original filenames, EXIF data, and public URLs are not authoritative fields; authorized reads use only a few-minute signed URL.
 
 ### PhotoChangeRequest
 
@@ -231,7 +231,7 @@ Key information:
 
 - Stable source entity/operation key, status, attempt count, next attempt, last sanitized error, and timestamps.
 
-Jobs run in a separate worker through pg-boss or Graphile Worker; Redis is not part of MVP. Jobs must be idempotent and reconstructable from authoritative database state. Retry immediately, then after seconds, approximately 1, 5, and 15 minutes, and then every 30–60 minutes with jitter until success or visible Administrator escalation.
+Jobs use the PostgreSQL-backed queue and no Redis. In the legacy paid profile they run through the standalone worker. In the zero-cost profile a bounded one-shot runner is called by a free scheduler or an Administrator. Jobs must be idempotent and reconstructable from authoritative database state. Retry immediately, then after seconds, approximately 1, 5, and 15 minutes, and then every 30–60 minutes with jitter until success or visible Administrator escalation.
 
 ## Non-negotiable invariants
 

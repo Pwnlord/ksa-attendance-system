@@ -28,10 +28,11 @@ class DatabaseLifecycle implements OnModuleDestroy {
           connectionString: config.getOrThrow<string>("app.databaseUrl"),
           max: config.get<number>("app.databasePoolMax", 10),
           application_name: "ksa-attendance-api",
-          ssl:
-            config.get<string>("app.environment") === "production"
-              ? { rejectUnauthorized: true }
-              : undefined,
+          ssl: config.get<boolean>("app.databaseSsl", false)
+            ? {
+                rejectUnauthorized: config.get<boolean>("app.databaseSslRejectUnauthorized", true),
+              }
+            : undefined,
         }),
     },
     {

@@ -27,7 +27,7 @@ The database remains the authority throughout. Google Sheets is only a reporting
 
 - Decide how the explicit course end date/time will be stored so photo deletion truly occurs at course end plus the configured retention period. The current local fallback schedules from photo approval and is not sufficient for production.
 - Resolve the frontend dependency advisory deliberately. Do not apply the automatic breaking Next.js upgrade without review and a full test run.
-- Confirm the owner for Render, PostgreSQL backups, R2, Resend, Google Sheets, Sentry, and participant support.
+- Confirm the owner for Render, Supabase exports/restores, Supabase Storage, Resend, Google Sheets, Sentry, the scheduled job workflow, and participant support.
 - Confirm that no real production Google credential, real participant photo, or production secret is present in source code, fixtures, screenshots, or local test output.
 
 # Gate 1 — Staging
@@ -42,22 +42,25 @@ Use the detailed [`Render staging setup runbook`](render-staging-setup.md) while
 
 Use separate staging resources:
 
-- Render Frankfurt services for the Next.js frontend, NestJS API, and PostgreSQL-backed worker.
-- A separate managed PostgreSQL database. The staging Blueprint uses a paid minimum database plan because Render Free Postgres does not provide backups.
-- A private test-only Cloudflare R2 bucket.
+- Free Render Frankfurt web services for the Next.js frontend and NestJS API.
+- A separate Supabase Free PostgreSQL project and private Storage bucket.
+- A bounded protected job-runner endpoint called by the free GitHub Actions schedule, with an Administrator fallback.
 - A test Resend sender/domain or a controlled test-recipient setup.
 - A separate Google test workbook and least-privilege service account.
 - A separate Sentry project or environment with replay disabled and sensitive-field filtering.
 - A restricted staging URL or access control in front of the application.
 
-Never reuse production database credentials, R2 keys, Google credentials, or email credentials in staging.
+Never reuse production database credentials, Supabase service-role keys, Google credentials, or email credentials in staging.
 
-The staging Blueprint leaves the frontend and API on Render's Free plan for an inexpensive first smoke deployment, but the worker uses Render's minimum paid plan because background workers do not have a Free plan. If staging is being used as a serious performance or venue rehearsal, upgrade the frontend and API to the same paid starter-sized plan before testing; Free services can sleep or restart and are not suitable for production.
+The active staging Blueprint creates only Free Render resources. It deliberately contains no Render
+database, paid worker, paid service, or pre-deploy migration. Free services can sleep or restart,
+Supabase Free can pause, and the scheduled job endpoint is eventually consistent; these are tested
+and recorded as explicit pilot limitations.
 
 ## Staging setup checklist
 
 - [ ] Create the Render project in Frankfurt.
-- [ ] Create separate frontend, backend, worker, and managed PostgreSQL services.
+- [ ] Create separate Free frontend and backend web services and a separate Supabase Free project.
 - [ ] Use the staging-only root `render.yaml` Blueprint as the deployment starting point; review service names and resource plans before syncing it.
 - [ ] Set the Node/runtime versions explicitly.
 - [ ] Configure staging secrets only in Render's environment settings or secret manager.
@@ -69,11 +72,11 @@ The staging Blueprint leaves the frontend and API on Render's Free plan for an i
 - [ ] Apply reviewed database migrations.
 - [ ] Bootstrap one staging Administrator through the controlled bootstrap process.
 - [ ] Create fictional roster entries and synthetic sessions.
-- [ ] Configure the staging R2 bucket as private and verify direct public access fails.
+- [ ] Configure the staging Supabase Storage bucket as private and verify direct public access fails.
 - [ ] Configure test email delivery and confirm verification/recovery links use the staging origin.
 - [ ] Configure the test Google workbook and verify only the target workbook is shared.
 - [ ] Configure Sentry filtering and confirm session replay is disabled.
-- [ ] Configure health checks, worker monitoring, backups, and alert contacts.
+- [ ] Configure health checks, scheduled-job monitoring, manual Supabase exports, and alert contacts.
 
 ## Staging validation checklist
 
@@ -92,10 +95,10 @@ Run the applicable scenarios from [`acceptance-tests.md`](acceptance-tests.md):
 - [ ] Private photos cannot be fetched directly and signed URLs expire as designed.
 - [ ] Photo replacement approval and retention job behavior are verified without exposing photos in logs or Sheets.
 - [ ] Google Sheets outage does not remove attendance success; retry and reconciliation work.
-- [ ] Worker restart, stale locks, failed jobs, and safe retries are visible to the Administrator.
+- [ ] Scheduled runner, stale locks, failed jobs, manual processing, and safe retries are visible to the Administrator.
 - [ ] Rate limits return safe `429` responses and `Retry-After` values.
 - [ ] Generic errors contain no stack traces, SQL, secrets, internal paths, tokens, or exact coordinates.
-- [ ] Database backups and a non-production restore procedure are tested.
+- [ ] Supabase export and a non-production restore procedure are tested.
 
 ## Staging accessibility and device review
 
@@ -114,7 +117,7 @@ Gate 1 passes only when:
 - Deployment is repeatable and rollback/forward-fix steps are known.
 - The staging security and acceptance checks pass or have named, explicitly accepted risks.
 - The same-origin cookie and `/api/*` proxy behavior is proven over HTTPS.
-- Worker, database, storage, email, Sheets, Sentry, health checks, alerts, and backups have evidence.
+- Supabase database/storage, scheduled jobs, email, Sheets, Sentry, health checks, alerts, and export/restore have evidence.
 - No real production secrets or unapproved participant data entered staging.
 - The product owner approves the controlled venue pilot.
 
@@ -166,15 +169,15 @@ Gate 2 passes only when:
 
 ## Production configuration
 
-- [ ] Create the production Render project and services in Frankfurt.
-- [ ] Create the managed PostgreSQL database with backups and restore access.
-- [ ] Configure the private production R2 bucket and lifecycle/retention controls.
+- [ ] Create the production Render project with Free frontend/API services in Frankfurt.
+- [ ] Create the production Supabase PostgreSQL project, export/restore procedure, and access review.
+- [ ] Configure the private production Supabase Storage bucket and lifecycle/retention controls.
 - [ ] Configure Resend sending-domain authentication with SPF, DKIM, and DMARC.
 - [ ] Configure the Kora-owned or approved least-privilege Google service account and target workbook.
 - [ ] Configure Sentry with replay disabled, sensitive-field filtering, alert ownership, and retention settings.
 - [ ] Configure production HTTPS, custom domain, same-origin `/api/*` routing, and secure host-only cookies.
 - [ ] Set production secrets only through the deployment secret manager.
-- [ ] Set `API_DOCS_ENABLED=false`, `COOKIE_SECURE=true`, `STORAGE_DRIVER=r2`, `EMAIL_DRIVER=resend`, and `GOOGLE_SHEETS_DRIVER=google`.
+- [ ] Set `DEPLOYMENT_PROFILE=zero-cost`, `JOB_RUNNER_MODE=endpoint`, `API_DOCS_ENABLED=false`, `COOKIE_SECURE=true`, `STORAGE_DRIVER=supabase`, `EMAIL_DRIVER=resend`, and `GOOGLE_SHEETS_DRIVER=google`.
 - [ ] Configure the explicit course end date/time before enabling production photo-retention scheduling.
 
 ## Production data and operations
@@ -207,7 +210,7 @@ Launch gradually. During the initial launch window, monitor:
 - Sign-in and registration failures.
 - Attendance outcomes and duplicate attempts.
 - Device-change and manual-review queues.
-- Worker backlog, failed jobs, and stale locks.
+- Scheduled-job backlog, failed jobs, and stale locks.
 - Google Sheets projection health and reconciliation requests.
 - Email delivery and bounce signals.
 - Database, storage, Render health checks, and Sentry events.

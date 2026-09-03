@@ -16,6 +16,7 @@ import { IdentityModule } from "./identity/identity.module";
 import { AttendanceModule } from "./attendance/attendance.module";
 import { SheetsModule } from "./sheets/sheets.module";
 import { EmailModule } from "./infrastructure/email/email.module";
+import { JobRunnerModule } from "./jobs/jobs.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { EmailModule } from "./infrastructure/email/email.module";
     AttendanceModule,
     SheetsModule,
     EmailModule,
+    JobRunnerModule,
   ],
   providers: [
     SanitizedLoggerService,

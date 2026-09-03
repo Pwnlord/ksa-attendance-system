@@ -121,6 +121,7 @@ export const api = {
       ...json({ scope, sessionId: sessionId ?? null, reason }),
       headers: { "Idempotency-Key": key },
     }),
+  runDueJobs: () => request<{ claimed: number; succeeded: number; failed: number }>("/admin/jobs/run", json({})),
 };
 
 export function newIdempotencyKey(prefix = "ksa-web") {

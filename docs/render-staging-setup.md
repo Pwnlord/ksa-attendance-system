@@ -1,12 +1,19 @@
-# Render Staging Setup Runbook
+# Zero-Cost Render and Supabase Staging Runbook
 
-This runbook is for the first controlled staging deployment of the KSA Attendance System. It is staging-only. Do not use production credentials, production photos, or normal participant data during this setup.
+This runbook is for the first staging deployment of the KSA Attendance System. The hard
+constraint is that staging, the controlled pilot, and the intended production deployment use no
+paid services. Do not approve a Blueprint review that contains a paid Render resource, Render
+Postgres, a Render background worker, a required payment method, or a paid plan.
+
+The architecture comparison and reversal procedure are in
+[`zero-cost-architecture-migration.md`](zero-cost-architecture-migration.md).
 
 ## What must exist first
 
 ### Private source repository
 
-The project must be pushed to a private GitHub or other supported Git provider repository. The repository root must contain:
+The project must be pushed to a private GitHub or other supported Git provider repository. The
+repository root must contain:
 
 ```text
 render.yaml
@@ -15,159 +22,203 @@ frontend/
 mockup/
 docs/
 context/
+.github/workflows/zero-cost-jobs.yml
 ```
 
-Before pushing, confirm that `backend/.env` and other local secret files are excluded. Never commit API keys, database passwords, Google private keys, R2 secrets, or participant data.
+Before pushing, confirm that `backend/.env` and other local secret files are excluded. Never commit
+API keys, database passwords, Supabase service-role keys, Google private keys, participant data, or
+photos.
 
-### Render account
+### Supabase Free project
 
-Create or use the Render workspace that will own the staging resources. The person who owns this workspace should also be identified as the deployment and rollback contact.
+Create a separate project named something like `ksa-attendance-staging` on the Free plan.
 
-## Create the staging Blueprint
+Prepare these items in Supabase:
 
-The repository already contains a staging-only [`render.yaml`](../render.yaml). In the Render Dashboard:
+- A strong database password stored in a password manager.
+- The **Shared Pooler — Session mode** PostgreSQL connection string from the Connect screen.
+- A private Storage bucket named something like `attendance-photos-staging`.
+- The project URL and backend-only service-role key.
+
+Do not enable Supabase Auth, Realtime, or public photo access. The NestJS backend owns sessions and
+authorization. Do not import the real roster or upload real participant photos during staging.
+
+Supabase Free has database, storage, pausing, and backup limitations. Maintain manual protected
+database exports before important staging/pilot changes. [Supabase pricing](https://supabase.com/pricing),
+[Supabase database connections](https://supabase.com/docs/guides/database/connecting-to-postgres),
+[Supabase private buckets](https://supabase.com/docs/guides/storage/buckets/fundamentals),
+[Supabase backups](https://supabase.com/docs/guides/platform/backups)
+
+## Create the zero-cost Render Blueprint
+
+The root [`render.yaml`](../render.yaml) is the active zero-cost Blueprint. In the Render Dashboard:
 
 1. Select **New → Blueprint**.
 2. Connect the private repository.
-3. Select the branch to deploy.
+3. Select the `staging` branch.
 4. Select the root `render.yaml` if Render does not detect it automatically.
-5. Review the proposed resource names and plans.
-6. Do not create production resources during this step.
-7. Deploy the Blueprint only after confirming that all staging secret values are ready.
+5. Review the proposed resources and confirm that every service says **Free**.
+6. Confirm that no database or worker resource appears.
+7. Deploy only after the external values below are ready.
 
-The Blueprint creates these resources:
+The Blueprint creates exactly:
 
-| Resource | Render type | Purpose | Staging plan |
+| Resource | Render type | Plan | Purpose |
 | --- | --- | --- | --- |
-| `ksa-attendance-staging-frontend` | Web service | Next.js participant/operator interface | Free for initial smoke deployment; paid is preferred for serious rehearsal |
-| `ksa-attendance-staging-api` | Web service | NestJS authoritative API | Minimum paid plan; required for pre-deploy migrations and private-network access |
-| `ksa-attendance-staging-worker` | Background worker | PostgreSQL queue, email, Sheets, lifecycle, and photo-retention jobs | Minimum paid worker plan |
-| `ksa-attendance-staging-db` | Render Postgres | Authoritative staging database | Paid minimum plan so backup/restore can be tested |
+| `ksa-attendance-staging-api` | Web service | Free | NestJS API and protected one-shot job endpoint |
+| `ksa-attendance-staging-frontend` | Web service | Free | Next.js application and `/api/*` server proxy |
 
-The API requires a paid service plan because its Blueprint uses a pre-deploy migration command and the frontend reaches it over Render’s private network. The worker cannot use a Free service plan, and Free Postgres does not provide automatic backups. Render’s current plan limitations should be checked before confirming billing. [Render compute plans](https://render.com/docs/compute-plans), [Render Free limitations](https://render.com/docs/free)
+The Blueprint deliberately does not create Render Postgres, a background worker, a pre-deploy
+migration command, or any paid resource.
 
-## Configure the services
+## Configure Render environment values
 
-### Values wired automatically by the Blueprint
-
-Render supplies these references:
-
-- `DATABASE_URL` on the API and worker from the staging Postgres database.
-- `BACKEND_INTERNAL_URL` on the frontend from the API’s private `host:port` address.
-
-The frontend rewrite converts that private address into an internal HTTP URL. The browser still calls only the frontend’s `/api/v1` path.
-
-The frontend may remain on the Free plan for the initial smoke deployment. It can be upgraded later for a more reliable rehearsal without changing the application architecture.
-
-### Fixed values already in the Blueprint
-
-The Blueprint sets:
+### Fixed values in the Blueprint
 
 ```text
 NODE_ENV=staging
+DEPLOYMENT_PROFILE=zero-cost
+DATABASE_SSL=true
+DATABASE_SSL_REJECT_UNAUTHORIZED=false
+DATABASE_POOL_MAX=5
 COOKIE_SECURE=true
 API_DOCS_ENABLED=false
-STORAGE_DRIVER=r2
+JOB_RUNNER_MODE=endpoint
+STORAGE_DRIVER=supabase
 EMAIL_DRIVER=resend
 GOOGLE_SHEETS_DRIVER=google
-R2_PRESIGNED_URL_TTL_SECONDS=300
 ```
 
-### Values to enter in Render
+`DATABASE_SSL_REJECT_UNAUTHORIZED=false` still requires encrypted database traffic; use it only if
+the Supabase pooler certificate setup requires it. If the deployed connection can verify the
+certificate, set it to `true`.
 
-Enter these values through the Render Dashboard or the Blueprint’s initial secret prompts. Never put the values in `render.yaml` or this document.
-
-For the API:
+### API values entered as secrets
 
 | Variable | What to provide |
 | --- | --- |
-| `PUBLIC_APP_URL` | The HTTPS URL of the staging frontend |
-| `TRUSTED_ORIGINS` | The same staging frontend origin, without a path |
-| `AUTH_TOKEN_ENCRYPTION_KEY` | A new 32-byte staging key; use a 64-character hexadecimal value |
-| `R2_ACCOUNT_ID` | Staging Cloudflare account ID |
-| `R2_ACCESS_KEY_ID` | Staging R2 access key with only the required bucket access |
-| `R2_SECRET_ACCESS_KEY` | Matching staging R2 secret |
-| `R2_BUCKET` | Private staging photo bucket |
-| `R2_ENDPOINT` | Staging R2 endpoint |
-| `RESEND_API_KEY` | Staging/test Resend API key |
-| `RESEND_FROM_EMAIL` | Approved staging sender address |
-| `GOOGLE_SHEETS_SPREADSHEET_ID` | Staging test workbook ID |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Staging least-privilege service account |
+| `DATABASE_URL` | Supabase staging pooler connection string |
+| `TRUSTED_ORIGINS` | The frontend HTTPS origin, without a path |
+| `PUBLIC_APP_URL` | The frontend HTTPS URL |
+| `AUTH_TOKEN_ENCRYPTION_KEY` | New 32-byte staging key, for example `openssl rand -hex 32` |
+| `JOB_RUNNER_SECRET` | New random secret of at least 32 characters |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase backend-only service-role key |
+| `SUPABASE_STORAGE_BUCKET` | Private staging bucket name |
+| `RESEND_API_KEY` | Staging/test Resend key |
+| `RESEND_FROM_EMAIL` | Approved staging sender |
+| `GOOGLE_SHEETS_SPREADSHEET_ID` | Staging workbook ID |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Least-privilege staging service account |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Staging service-account private key |
-| `SENTRY_DSN` | Staging Sentry DSN |
+| `SENTRY_DSN` | Staging Sentry DSN, if using the free allowance |
 
-For the worker, enter the same staging storage, email, Google, encryption, and Sentry values. `TRUSTED_ORIGINS` is not needed by the worker. `PUBLIC_APP_URL` is still required so queued verification and password-reset links point to staging.
+Never paste any secret into this document, chat, screenshots, source control, or logs. Preserve
+escaped newlines if Render requires the Google private key to be one line.
 
-For `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`, preserve the key content. If Render requires a single-line value, use the escaped newline form expected by the application (`\\n`).
+### Frontend value entered as a secret
 
-Generate a staging encryption key locally if needed:
+After the API service is created, copy its public HTTPS URL into the frontend service as:
 
-```sh
-openssl rand -hex 32
+```text
+BACKEND_PUBLIC_URL=https://<staging-api-public-host>
 ```
 
-Do not send the generated key or any other secret through chat, screenshots, source control, or issue comments.
+The browser still calls the frontend's `/api/v1` path. Next.js proxies that path server-side to the
+API URL. The API is publicly reachable in this Free topology, so its origin, CSRF, cookie, rate
+limit, authentication, and authorization controls remain mandatory.
 
-## External services required for staging
+## Configure the free scheduled job runner
 
-These services are configured outside Render, but their staging values are entered into Render:
+The repository includes `.github/workflows/zero-cost-jobs.yml`. It calls the protected API endpoint
+every few minutes and can also be started manually from the GitHub Actions tab.
 
-- **Cloudflare R2:** create a separate private staging bucket and restricted access key.
-- **Resend:** use a test sender/domain and controlled recipients; do not send staging mail to the whole participant list.
-- **Google Sheets:** create a separate test workbook and share it only with the staging service account.
-- **Sentry:** create a staging project or environment with session replay disabled and sensitive-field filtering enabled.
+Important for the current `staging` branch: GitHub scheduled workflows run from the latest commit
+on the repository's default branch. Before relying on automatic runs, put this workflow on the
+default branch or make `staging` the default branch. Otherwise use **Run workflow** manually until
+that is done. [GitHub scheduled workflow behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule)
 
-Do not use Supabase Auth, Supabase Storage, or Supabase Realtime for this staging setup. The approved design uses server-managed sessions, private R2 photos, and polling. Supabase remains an optional alternative PostgreSQL provider, not part of the current Render Blueprint.
+Add these GitHub repository secrets:
 
-## Deployment order and checks
+| Secret | Value |
+| --- | --- |
+| `JOB_RUNNER_URL` | `https://<staging-api-public-host>/api/v1/internal/jobs/run` |
+| `JOB_RUNNER_SECRET` | The exact same value as the Render API secret |
 
-After the Blueprint is deployed:
+The endpoint processes a bounded batch of due email, Sheets, lifecycle, manual-case, and photo-
+retention jobs. It returns no job payloads. An Administrator can also call the protected **Run due
+jobs** operation from the application when the scheduled workflow is delayed.
 
-1. Confirm the staging database exists and migrations complete.
-2. Confirm the API health check passes:
+Free scheduling is eventually consistent: it does not guarantee exact-second session transitions
+or immediate email/Sheets delivery. Request-time session/case reconciliation and the manual Admin
+fallback remain in place.
+
+## Run migrations explicitly
+
+Render Free does not run the old pre-deploy migration command. From a controlled machine with the
+backend dependencies installed, set the Supabase connection values in the local environment and
+run:
+
+```sh
+cd backend
+npm ci
+npm run db:migrate
+```
+
+Verify the command reports `Database migrations applied.` before testing the deployed API. Do not
+put the connection string in a shell history that others can access.
+
+Bootstrap the first staging Administrator through the existing secure CLI procedure after the
+migration. Do not use public registration to create the first Administrator.
+
+## Deployment checks
+
+1. Confirm the Blueprint review lists exactly two Free web services.
+2. Confirm no Render Postgres, worker, paid plan, pre-deploy command, or required payment method is present.
+3. Run the explicit database migration and record its time/commit.
+4. Confirm API health:
 
    ```text
    https://<staging-api>/api/v1/health/live
    https://<staging-api>/api/v1/health/ready
    ```
 
-3. Confirm the frontend opens at `/login`.
-4. Confirm the frontend `/api/v1` requests reach the API without exposing the API service to the browser as a separate authentication origin.
-5. Confirm the worker starts and remains running.
-6. Confirm the Render logs contain no secrets, tokens, private photo URLs, exact coordinates, or participant-sensitive request bodies.
-7. Confirm the staging R2 bucket cannot be accessed publicly.
-8. Confirm test email delivery and staging-origin links.
-9. Confirm the test Google workbook receives only staging projection data.
-10. Confirm Sentry receives only sanitized generic errors and has no session replay.
+5. Open the frontend at `/login` and verify its `/api/v1` requests reach the API.
+6. Manually dispatch the GitHub job workflow and confirm a valid response without secrets in logs.
+7. Verify a bad job-runner secret is rejected and does not process jobs.
+8. Verify Supabase Storage is private and authorized photo review returns only a short-lived signed URL.
+9. Verify the test workbook, Resend sender, and Sentry project contain staging-only data.
+10. Test a sleeping-service wake-up, database outage, provider outage, queue retry, and Admin manual run.
 
-Render web services can use HTTP health-check paths such as the API readiness endpoint. [Render health checks](https://render.com/docs/health-checks)
+Render Free web services may sleep after inactivity. Supabase Free projects may pause after low
+activity. These are known staging/pilot limitations and must be included in acceptance evidence.
+[Render Free limitations](https://render.com/docs/free)
 
 ## Staging acceptance pass
 
-Use fictional roster entries and test accounts to verify:
+Use fictional roster entries and test accounts to verify registration, email verification, login,
+password recovery, device binding/replacement, the permanent QR check-in route, automatic/manual
+attendance, session lifecycle, cancellation, correction, private photo access, Sheets outage and
+reconciliation, rate limits, authorization, safe errors, mobile browsers, and accessibility.
 
-- Registration, email verification, login, logout, and password recovery.
-- The permanent QR check-in route and return-to-login behavior.
-- Automatic attendance, duplicate handling, device recognition, and location outcomes.
-- Manual verification, device replacement, session extension, cancellation, and Administrator correction.
-- Private photo review, replacement approval, and retention-job retry behavior.
-- Google Sheets outage, retry, and reconciliation behavior.
-- Rate limits, authorization denials, safe errors, and correlation IDs.
-- Android Chrome, iPhone Safari, and an operator desktop browser.
-- Keyboard access, focus visibility, labels, status messages, zoom, contrast, reduced motion, and touch targets.
-- Database backup/restore evidence and worker restart recovery.
+Also record:
 
-Record the result, date, environment, browser/device, expected outcome, actual outcome, defect, owner, and follow-up action in the Phase 9 evidence record.
+- migration and manual Supabase export evidence;
+- scheduled job and manual fallback evidence;
+- the delay observed for email and Sheets jobs;
+- photo retention and failed-deletion retry evidence; and
+- the Render/Supabase sleep or pause behavior.
 
 ## Safety boundaries
 
-- This is not production deployment.
-- Do not point the wall QR at staging for normal attendance.
-- Do not import the real approved roster until the pilot process explicitly permits it.
-- Do not use production R2, Resend, Google, Sentry, or database credentials.
-- Do not add a custom production domain yet.
-- Do not enable photo retention for production until an explicit course-end date/time is modeled and verified.
+- This is not permission to use paid services.
+- Do not point the permanent QR at staging for normal attendance.
+- Do not import the real roster or create real participant accounts until the pilot gate explicitly permits it.
+- Do not use production database, storage, email, Google, or Sentry credentials.
+- Do not make the Supabase bucket public.
+- Do not place the Supabase service-role key in frontend variables or browser code.
 
 ## Gate 1 completion
 
-Staging is ready for the controlled pilot only after deployment, security, acceptance, accessibility, device, worker, provider, backup, and support checks are recorded and approved. The next gate is the controlled venue pilot; production remains a separate later gate.
+Staging is ready for the controlled pilot only after deployment, security, acceptance, accessibility,
+device, export/restore, job-scheduler, provider-failure, and support checks are recorded and
+approved. The next gate is the controlled venue pilot; production remains a separate later gate.
