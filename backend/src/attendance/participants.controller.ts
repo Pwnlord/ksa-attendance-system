@@ -10,6 +10,11 @@ import { ParticipantSearchQueryDto } from "./dto/review.dto";
 export class ParticipantsController {
   constructor(private readonly identity: IdentityService) {}
 
+  @Get("all")
+  listAll(@Query("limit") limit?: number) {
+    return this.identity.listActiveParticipants(limit);
+  }
+
   @Get()
   search(
     @CurrentUser() _auth: AuthRequestContext,

@@ -50,6 +50,11 @@ export class AdminController {
     return this.roster.list(query);
   }
 
+  @Get("people")
+  listPeople(@Query("limit") limit?: number) {
+    return this.identity.listActiveUsers(limit);
+  }
+
   @Post("roster")
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
   async importRoster(
@@ -117,6 +122,12 @@ export class AdminController {
     const user = await this.identity.findById(input.participantId);
     if (!user) throw new Error("Assigned participant was not found.");
     return { data: await this.identity.toUser(user) };
+  }
+
+  @Post("roles/course-representative/revoke")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeCourseRep(@CurrentUser() auth: AuthRequestContext, @Body() input: AssignCourseRepDto) {
+    await this.roles.revokeCourseRep(auth.userId, input.participantId, input.reason, input.currentPassword);
   }
 
   @Get("roles/admins")

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, eq, ilike, isNull, or } from "drizzle-orm";
 import { DATABASE } from "../database/database.constants";
 import type { Database } from "../database/database.module";
 import { roleAssignments, users } from "../database/schema";
@@ -76,6 +76,39 @@ export class IdentityService {
       )
       .limit(1);
     return row?.user ?? null;
+  }
+
+  async listActiveUsers(limit = 200) {
+    const entries = await this.db
+      .select({ user: users })
+      .from(users)
+      .where(eq(users.accountStatus, "ACTIVE"))
+      .orderBy(asc(users.fullName))
+      .limit(Math.min(Math.max(limit, 1), 500));
+    return {
+      items: await Promise.all(entries.map(({ user }) => this.toUser(user))),
+      nextCursor: null,
+    };
+  }
+
+  async listActiveParticipants(limit = 500) {
+    const entries = await this.db
+      .select({ user: users })
+      .from(users)
+      .innerJoin(roleAssignments, eq(roleAssignments.userId, users.id))
+      .where(
+        and(
+          eq(users.accountStatus, "ACTIVE"),
+          eq(roleAssignments.role, "PARTICIPANT"),
+          isNull(roleAssignments.revokedAt),
+        ),
+      )
+      .orderBy(asc(users.fullName))
+      .limit(Math.min(Math.max(limit, 1), 500));
+    return {
+      items: await Promise.all(entries.map(({ user }) => this.participantSummary(user.id))),
+      nextCursor: null,
+    };
   }
 
   async toUser(user: NonNullable<Awaited<ReturnType<IdentityService["findById"]>>>) {

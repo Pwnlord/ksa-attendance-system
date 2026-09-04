@@ -89,6 +89,7 @@ export const api = {
   photoRequests: () => request<{ items: PhotoChangeRequest[] }>("/me/photo-change-requests"),
   requestPhotoChange: (form: FormData) => request<PhotoChangeRequest>("/me/photo-change-requests", { method: "POST", body: form }),
   participants: (query: string) => request<{ items: ParticipantSummary[] }>(`/participants?query=${encodeURIComponent(query)}`),
+  allParticipants: () => request<{ items: ParticipantSummary[]; nextCursor: string | null }>("/participants/all?limit=500"),
   currentSession: () => request<AttendanceSession | null>("/sessions/current"),
   sessions: (status?: string) => request<{ items: AttendanceSession[] }>(`/sessions${status ? `?status=${status}` : ""}`),
   createSession: (body: { attendanceDate: string; effectiveStart: string; effectiveEnd?: string; initialStatus: "DRAFT" | "SCHEDULED" | "OPEN" }) =>
@@ -142,8 +143,11 @@ export const api = {
   updateRoster: (id: string, body: { expectedVersion: number; fullName?: string; email?: string | null; phone?: string | null; enrollmentEffectiveDate?: string; status?: RosterEntry["status"]; reason: string }) =>
     request<RosterEntry>(`/admin/roster/${id}`, { method: "PATCH", body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
   roleOverview: () => request<{ courseRepresentative: User | null; administrators: User[] }>("/admin/roles"),
+  adminPeople: () => request<{ items: User[]; nextCursor: string | null }>("/admin/people?limit=500"),
   replaceCourseRep: (participantId: string, reason: string, currentPassword: string) =>
     request<User>("/admin/roles/course-representative", { method: "PUT", body: JSON.stringify({ participantId, reason, currentPassword }), headers: { "content-type": "application/json" } }),
+  revokeCourseRep: (participantId: string, reason: string, currentPassword: string) =>
+    request<void>("/admin/roles/course-representative/revoke", { method: "POST", body: JSON.stringify({ participantId, reason, currentPassword }), headers: { "content-type": "application/json" } }),
   grantAdmin: (userId: string, reason: string, currentPassword: string) =>
     request<User>("/admin/roles/admins", json({ userId, reason, currentPassword })),
   revokeAdmin: (userId: string, reason: string, currentPassword: string) =>

@@ -101,6 +101,45 @@ export class RoleService {
     });
   }
 
+  async revokeCourseRep(
+    actorId: string,
+    targetId: string,
+    reason: string,
+    currentPassword: string,
+  ): Promise<void> {
+    await this.assertRecentAuthentication(actorId, currentPassword);
+    await this.db.transaction(async (tx) => {
+      const [active] = await tx
+        .select({ id: roleAssignments.id })
+        .from(roleAssignments)
+        .where(
+          and(
+            eq(roleAssignments.userId, targetId),
+            eq(roleAssignments.role, "COURSE_REP"),
+            isNull(roleAssignments.revokedAt),
+          ),
+        )
+        .limit(1);
+      if (!active) {
+        throw new AppError("NOT_FOUND", 404, "The Course Representative role was not found.");
+      }
+      await tx
+        .update(roleAssignments)
+        .set({ revokedAt: new Date(), revokedByUserId: actorId, reason })
+        .where(eq(roleAssignments.id, active.id));
+      await this.audit.recordWith(tx, {
+        actorUserId: actorId,
+        actorRole: "ADMIN",
+        action: "COURSE_REP_REVOKED",
+        targetType: "USER",
+        targetId,
+        reason,
+        beforeValue: { role: "COURSE_REP" },
+        afterValue: { role: null },
+      });
+    });
+  }
+
   async grantAdmin(
     actorId: string,
     targetId: string,
