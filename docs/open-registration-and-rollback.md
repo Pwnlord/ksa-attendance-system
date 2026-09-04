@@ -22,7 +22,7 @@ The active policy is stored in the staging or production database in `course_con
 
 ## Why the roster still exists
 
-The roster remains available for a future controlled-registration mode, planning, reporting, and a possible rollback. It is not consulted while `OPEN_REGISTRATION` is active.
+The roster remains available for a future controlled-registration mode, optional enrollment metadata, planning, and a possible rollback. While `OPEN_REGISTRATION` is active, Sheets reporting includes registered Participant accounts even when they have no roster entry; a matched roster entry still supplies its enrollment-effective date and roster status.
 
 ## Switching back to preapproved registration
 

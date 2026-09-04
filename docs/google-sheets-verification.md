@@ -27,6 +27,8 @@ The real staging integration is verified only after the steps below succeed and 
 6. Refresh the page and confirm the health status is healthy, the failed count is zero, and a successful sync time is shown.
 7. Open the Google Sheet and confirm the expected tabs and rows were written. The database remains authoritative; the Sheet is a reporting projection.
 
+Under `OPEN_REGISTRATION`, registered Participant accounts are included even when the roster is empty. Their registration date is used as the enrollment-effective date, and their row is marked `OPEN_REGISTRATION` in the roster-status column. The expected data tabs are `Master Register`, `Summary`, and one dated tab for each attendance session. The default `Sheet1` tab is not used by the application.
+
 If the provider is Google but the job fails, check the service-account share permission, spreadsheet ID, private-key formatting, and Google Sheets API access. The health screen shows a sanitized last error.
 
 ## Changing the target Sheet

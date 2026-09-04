@@ -8,7 +8,7 @@ Phase 6 implements Google Sheets as an asynchronous, human-readable projection o
 
 - Credential-swappable Google Sheets provider using a least-privilege service-account JWT and the Google Sheets REST API.
 - Safe local memory provider for development and tests; no Google credentials are required locally.
-- `Master Register` projection from the approved roster and current participant account state.
+- `Master Register` projection from the approved roster plus registered Participant accounts, so open-registration accounts appear even without a roster entry. For an account without a roster entry, its registration date is used as the enrollment-effective date and the roster status is shown as `OPEN_REGISTRATION`.
 - One dated tab per real attendance session, with deterministic suffixes for the exceptional case of multiple sessions on one date.
 - Cross-session `Summary` with `PRESENT`, `ABSENT`, `N/A`, and `PENDING` states plus an applicable attendance percentage.
 - `N/A` for sessions before a participant's enrollment-effective date, excluded from percentage denominators.

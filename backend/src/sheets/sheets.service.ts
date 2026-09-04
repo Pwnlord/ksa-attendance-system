@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { DATABASE } from "../database/database.constants";
 import type { Database } from "../database/database.module";
 import {
@@ -8,6 +8,7 @@ import {
   attendanceSessions,
   backgroundJobs,
   courseConfig,
+  roleAssignments,
   rosterEntries,
   users,
 } from "../database/schema";
@@ -26,6 +27,12 @@ import { SHEETS_RECONCILE_JOB, SheetsReconcileScope } from "./sheets-job-types";
 import { SHEETS_PROVIDER, SheetTab, SheetsProvider } from "./sheets-provider.port";
 
 type Session = typeof attendanceSessions.$inferSelect;
+type ProjectionRow = {
+  roster: typeof rosterEntries.$inferSelect | null;
+  user: typeof users.$inferSelect | null;
+  enrollmentEffectiveDate: string;
+  attendanceRosterStatus: "UNCLAIMED" | "CLAIMED" | "DISABLED";
+};
 const projectionJobTypes = [ATTENDANCE_SHEETS_SYNC_JOB, SHEETS_RECONCILE_JOB];
 const retryableStatuses: Array<"PENDING" | "RETRY_SCHEDULED"> = ["PENDING", "RETRY_SCHEDULED"];
 const reportStatuses: Array<"PENDING" | "RUNNING" | "RETRY_SCHEDULED"> = [
@@ -57,6 +64,17 @@ function scopePayload(payload: unknown): SheetsReconcileScope {
     throw new Error("Sheets reconciliation has an invalid scope.");
   }
   return value as SheetsReconcileScope;
+}
+
+function localDate(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 @Injectable()
@@ -241,12 +259,16 @@ export class SheetsService {
       typeof (payload as Record<string, unknown>).sessionId === "string"
         ? ((payload as Record<string, unknown>).sessionId as string)
         : undefined;
-    if (scope === "MASTER_REGISTER" || scope === "FULL") await this.syncMasterRegister();
+    if (scope === "FULL") {
+      await this.syncFull();
+      return;
+    }
+    if (scope === "MASTER_REGISTER") await this.syncMasterRegister();
     if (scope === "SESSION") {
       if (!sessionId) throw new Error("Session reconciliation is missing a session ID.");
       await this.syncSession(sessionId);
     }
-    if (scope === "SUMMARY" || scope === "FULL") await this.syncSummary();
+    if (scope === "SUMMARY") await this.syncSummary();
   }
 
   async syncMasterRegister(): Promise<void> {
@@ -284,19 +306,72 @@ export class SheetsService {
     await this.provider.replaceTabs([master, ...tabs, summary]);
   }
 
-  private async rosterRows() {
+  private async participantRows(): Promise<ProjectionRow[]> {
     const [config] = await this.db
-      .select({ id: courseConfig.id })
+      .select({
+        id: courseConfig.id,
+        timezone: courseConfig.timezone,
+        registrationMode: courseConfig.registrationMode,
+      })
       .from(courseConfig)
       .where(eq(courseConfig.singletonKey, "default"))
       .limit(1);
     if (!config) throw new Error("Course configuration is not initialized.");
-    return this.db
+    const rosterRows = await this.db
       .select({ roster: rosterEntries, user: users })
       .from(rosterEntries)
       .leftJoin(users, eq(users.id, rosterEntries.claimedUserId))
       .where(eq(rosterEntries.courseConfigId, config.id))
       .orderBy(asc(rosterEntries.serial));
+
+    const participantUsers = await this.db
+      .select({ user: users })
+      .from(users)
+      .innerJoin(
+        roleAssignments,
+        and(
+          eq(roleAssignments.userId, users.id),
+          eq(roleAssignments.role, "PARTICIPANT"),
+          isNull(roleAssignments.revokedAt),
+        ),
+      )
+      .orderBy(asc(users.participantSerial), asc(users.fullName));
+
+    const sourceRosterRows =
+      config.registrationMode === "OPEN_REGISTRATION"
+        ? rosterRows.filter(({ roster }) => roster.status !== "UNCLAIMED")
+        : rosterRows;
+    const seenUserIds = new Set<string>();
+    const rows: ProjectionRow[] = sourceRosterRows.map(({ roster, user }) => {
+      if (user) seenUserIds.add(user.id);
+      return {
+        roster,
+        user,
+        enrollmentEffectiveDate: roster.enrollmentEffectiveDate,
+        attendanceRosterStatus: roster.status,
+      };
+    });
+
+    for (const { user } of participantUsers) {
+      if (seenUserIds.has(user.id)) continue;
+      rows.push({
+        roster: null,
+        user,
+        enrollmentEffectiveDate: localDate(user.createdAt, config.timezone),
+        attendanceRosterStatus: user.accountStatus === "ACTIVE" ? "CLAIMED" : "DISABLED",
+      });
+    }
+
+    return rows.sort((left, right) => {
+      const leftSerial = left.user?.participantSerial ?? left.roster?.serial ?? "";
+      const rightSerial = right.user?.participantSerial ?? right.roster?.serial ?? "";
+      return (
+        leftSerial.localeCompare(rightSerial) ||
+        (left.user?.fullName ?? left.roster?.normalizedName ?? "").localeCompare(
+          right.user?.fullName ?? right.roster?.normalizedName ?? "",
+        )
+      );
+    });
   }
 
   private async sessionTabs(sessions: Session[]): Promise<SheetTab[]> {
@@ -325,7 +400,7 @@ export class SheetsService {
 
   private async buildSessionTab(session: Session, title: string): Promise<SheetTab> {
     const [rows, records] = await Promise.all([
-      this.rosterRows(),
+      this.participantRows(),
       this.db.select().from(attendanceRecords).where(eq(attendanceRecords.sessionId, session.id)),
     ]);
     const recordsByUser = new Map(records.map((record) => [record.userId, record]));
@@ -356,18 +431,18 @@ export class SheetsService {
     ];
     if (session.status === "CANCELLED") values[1].push("CANCELLED — excluded from Summary");
     values.push(
-      ...rows.map(({ roster, user }) => {
+      ...rows.map(({ roster, user, enrollmentEffectiveDate, attendanceRosterStatus }) => {
         const record = user ? recordsByUser.get(user.id) : undefined;
         const status = applicableAttendanceStatus({
           sessionStatus: session.status,
           attendanceDate: session.attendanceDate,
-          enrollmentEffectiveDate: roster.enrollmentEffectiveDate,
-          rosterStatus: roster.status,
+          enrollmentEffectiveDate,
+          rosterStatus: attendanceRosterStatus,
           recordStatus: record?.status,
         });
         return [
-          safeSheetValue(roster.serial),
-          safeSheetValue(user?.fullName ?? roster.normalizedName),
+          safeSheetValue(user?.participantSerial ?? roster?.serial),
+          safeSheetValue(user?.fullName ?? roster?.normalizedName),
           safeSheetValue(status),
           safeSheetValue(
             record?.method === "CORRECTION"
@@ -377,8 +452,8 @@ export class SheetsService {
                 : record?.method,
           ),
           safeSheetValue(record?.checkedInAt?.toISOString()),
-          safeSheetValue(roster.enrollmentEffectiveDate),
-          safeSheetValue(roster.status),
+          safeSheetValue(enrollmentEffectiveDate),
+          safeSheetValue(roster?.status ?? "OPEN_REGISTRATION"),
         ];
       }),
     );
@@ -386,7 +461,7 @@ export class SheetsService {
   }
 
   private async masterTab(): Promise<SheetTab> {
-    const rows = await this.rosterRows();
+    const rows = await this.participantRows();
     return {
       title: "Master Register",
       values: [
@@ -402,13 +477,13 @@ export class SheetsService {
           "Account Status",
           "Registered At",
         ],
-        ...rows.map(({ roster, user }) => [
-          safeSheetValue(roster.serial),
-          safeSheetValue(user?.fullName ?? roster.normalizedName),
-          safeSheetValue(user?.normalizedEmail ?? roster.normalizedEmail),
-          safeSheetValue(user?.normalizedPhone ?? roster.normalizedPhone),
-          safeSheetValue(roster.enrollmentEffectiveDate),
-          safeSheetValue(roster.status),
+        ...rows.map(({ roster, user, enrollmentEffectiveDate }) => [
+          safeSheetValue(user?.participantSerial ?? roster?.serial),
+          safeSheetValue(user?.fullName ?? roster?.normalizedName),
+          safeSheetValue(user?.normalizedEmail ?? roster?.normalizedEmail),
+          safeSheetValue(user?.normalizedPhone ?? roster?.normalizedPhone),
+          safeSheetValue(enrollmentEffectiveDate),
+          safeSheetValue(roster?.status ?? "OPEN_REGISTRATION"),
           safeSheetValue(user?.accountStatus ?? "NOT_REGISTERED"),
           safeSheetValue(user?.createdAt?.toISOString()),
         ]),
@@ -430,7 +505,7 @@ export class SheetsService {
         asc(attendanceSessions.effectiveStartAt),
         asc(attendanceSessions.id),
       );
-    const rows = await this.rosterRows();
+    const rows = await this.participantRows();
     const sessionOccurrences = new Map<string, number>();
     const titles = sessions.map((session) => {
       const occurrence = (sessionOccurrences.get(session.attendanceDate) ?? 0) + 1;
@@ -463,22 +538,22 @@ export class SheetsService {
           ...titles,
           "Attendance Percentage",
         ],
-        ...rows.map(({ roster, user }) => {
+        ...rows.map(({ roster, user, enrollmentEffectiveDate, attendanceRosterStatus }) => {
           const statuses = sessions.map((session) =>
             applicableAttendanceStatus({
               sessionStatus: session.status,
               attendanceDate: session.attendanceDate,
-              enrollmentEffectiveDate: roster.enrollmentEffectiveDate,
-              rosterStatus: roster.status,
+              enrollmentEffectiveDate,
+              rosterStatus: attendanceRosterStatus,
               recordStatus: user
                 ? recordsBySessionUser.get(`${session.id}:${user.id}`)?.status
                 : undefined,
             }),
           );
           return [
-            safeSheetValue(roster.serial),
-            safeSheetValue(user?.fullName ?? roster.normalizedName),
-            safeSheetValue(roster.enrollmentEffectiveDate),
+            safeSheetValue(user?.participantSerial ?? roster?.serial),
+            safeSheetValue(user?.fullName ?? roster?.normalizedName),
+            safeSheetValue(enrollmentEffectiveDate),
             ...statuses.map(safeSheetValue),
             safeSheetValue(attendancePercentage(statuses)),
           ];
