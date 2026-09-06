@@ -29,30 +29,48 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}, acceptDataOnError = false): Promise<T> {
-  const response = await fetch(`${apiRoot}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(init.body instanceof FormData ? {} : { "content-type": "application/json" }),
-      ...(init.headers ?? {}),
-    },
-  });
-  const body = (await response.json().catch(() => ({}))) as {
-    data?: T;
-    error?: { code?: string; message?: string; details?: Record<string, unknown>; correlationId?: string };
-  };
-  if (!response.ok && acceptDataOnError && body.data !== undefined) return body.data as T;
-  if (!response.ok) {
-    throw new ApiError(
-      body.error?.code ?? "REQUEST_FAILED",
-      body.error?.message ?? "We could not complete that request.",
-      response.status,
-      body.error?.details ?? {},
-      body.error?.correlationId,
-    );
+async function request<T>(path: string, init: RequestInit = {}, acceptDataOnError = false, timeoutMs?: number): Promise<T> {
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timeout = timeoutMs ? setTimeout(() => controller?.abort(), timeoutMs) : undefined;
+  try {
+    const response = await fetch(`${apiRoot}${path}`, {
+      ...init,
+      ...(controller ? { signal: controller.signal } : {}),
+      credentials: "include",
+      headers: {
+        ...(init.body instanceof FormData ? {} : { "content-type": "application/json" }),
+        ...(init.headers ?? {}),
+      },
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      data?: T;
+      error?: { code?: string; message?: string; details?: Record<string, unknown>; correlationId?: string };
+    };
+    if (!response.ok && acceptDataOnError && body.data !== undefined) return body.data as T;
+    if (!response.ok) {
+      throw new ApiError(
+        body.error?.code ?? "REQUEST_FAILED",
+        body.error?.message ?? "We could not complete that request.",
+        response.status,
+        body.error?.details ?? {},
+        body.error?.correlationId,
+      );
+    }
+    return ("data" in body ? body.data : body) as T;
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      throw new ApiError(
+        "REQUEST_TIMEOUT",
+        path === "/auth/register"
+          ? "Account creation is taking too long. Check your connection and try again."
+          : "The request took too long. Check your connection and try again.",
+        408,
+      );
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
-  return ("data" in body ? body.data : body) as T;
 }
 
 const json = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
@@ -67,7 +85,7 @@ export const api = {
   forgotPassword: (identifier: string) => request<void>("/auth/password/forgot", json({ identifier })),
   confirmEmail: (token: string) => request<void>("/auth/email-verification/confirm", json({ token })),
   resetPassword: (token: string, password: string) => request<void>("/auth/password/reset", json({ token, password })),
-  register: (form: FormData) => request<{ user: User; attendanceDeviceStatus: string | null }>("/auth/register", { method: "POST", body: form }),
+  register: (form: FormData) => request<{ user: User; attendanceDeviceStatus: string | null }>("/auth/register", { method: "POST", body: form }, false, 60_000),
   attendanceContext: () => request<AttendanceContext>("/attendance/context"),
   checkIn: (body: { location: { latitude: number; longitude: number; accuracyMetres: number; capturedAt: string } } | { locationFailure: "PERMISSION_DENIED" | "TIMEOUT" | "UNAVAILABLE" | "UNSUPPORTED" }, key: string) =>
     request<CheckInResult>("/attendance/check-in", {

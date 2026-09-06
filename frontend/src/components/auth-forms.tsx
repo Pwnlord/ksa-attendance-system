@@ -161,7 +161,7 @@ export function RegistrationForm() {
   }
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
   return (
-    <form onSubmit={submit} noValidate className="space-y-5">
+    <form onSubmit={submit} noValidate aria-busy={submitting} className="space-y-5">
       <Field label="Full name" name="fullName" value={values.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" required error={fieldErrors.fullName} />
       <Field label="Phone number" name="phone" value={values.phone} onChange={(event) => update("phone", event.target.value)} autoComplete="tel" required error={fieldErrors.phone} />
       <Field label="Email" name="email" type="email" value={values.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" required error={fieldErrors.email} />
@@ -187,7 +187,8 @@ export function RegistrationForm() {
       </label>
       <Notice tone="info">One browser can be assigned to one participant account. This first account becomes the approved attendance account for this browser. If you need another account, use a separate browser profile. Clearing cookies later will require device approval again.</Notice>
       {hasFieldErrors ? <Notice tone="error">Please correct the highlighted fields before continuing.</Notice> : error ? <Notice tone="error">{apiErrorMessage(error, "We could not create your account. Check the details and try again.")}</Notice> : null}
-      <Button type="submit" disabled={submitting} className="w-full">{submitting ? "Creating account…" : "Create account"}</Button>
+      {submitting ? <Notice tone="info">Creating your account and securely processing your photo. Please keep this page open.</Notice> : null}
+      <Button type="submit" disabled={submitting} className="w-full"><>{submitting ? <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" /> : null}{submitting ? "Creating account…" : "Create account"}</></Button>
       <p className="text-center text-sm text-muted">Already have an account? <TextLink href="/login">Log in</TextLink></p>
     </form>
   );
