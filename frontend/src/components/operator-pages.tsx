@@ -191,6 +191,17 @@ export function OperationsOverview({ user }: { user: User }) {
         <Metric label="Device requests" value={String(deviceCount)} href="/operations/manual-verifications#devices" tone={deviceCount ? "warning" : "muted"} />
       </div>
 
+      <Card className="mt-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Operations tools</p>
+        <h2 className="mt-2 text-lg font-bold">Manage attendance</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <OperationsLink href="/operations/attendance" label="Live attendance" description="See who is present now." />
+          <OperationsLink href="/operations/participants" label="Participants" description="View participants and record emergency attendance." />
+          <OperationsLink href="/operations/manual-verifications" label="Review queues" description="Handle manual reviews and device changes." />
+          <OperationsLink href="/operations/sessions" label="Sessions" description="Review and manage session history." />
+        </div>
+      </Card>
+
       {current ? (
         <Card className="mt-5 border-blue-100 bg-pale">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -242,6 +253,10 @@ export function OperationsOverview({ user }: { user: User }) {
 function Metric({ label, value, tone, href }: { label: string; value: string; tone: "primary" | "warning" | "muted"; href?: string }) {
   const content = <><p className="text-xs font-bold uppercase tracking-widest text-muted">{label}</p><p className={`mt-3 text-2xl font-bold ${tone === "primary" ? "text-primary" : tone === "warning" ? "text-amber-700" : "text-ink"}`}>{value}</p></>;
   return href ? <Link href={href} className="rounded-2xl border border-border bg-white p-5 shadow-card hover:border-blue-200">{content}</Link> : <Card>{content}</Card>;
+}
+
+function OperationsLink({ href, label, description }: { href: string; label: string; description: string }) {
+  return <Link href={href} className="rounded-xl border border-border p-4 hover:border-blue-200 hover:bg-slate-50"><p className="font-bold text-ink">{label}</p><p className="mt-1 text-sm leading-5 text-muted">{description}</p></Link>;
 }
 
 function SessionRow({ session, admin = false, onChanged }: { session: AttendanceSession; admin?: boolean; onChanged?: () => void }) {

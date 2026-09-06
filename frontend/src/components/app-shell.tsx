@@ -8,6 +8,8 @@ import { primaryRoleLabel } from "../lib/format";
 import type { Role, User } from "../lib/types";
 import { Button, LoadingBlock, TextLink } from "./ui";
 
+type NavigationLink = { href: string; label: string };
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,11 +50,30 @@ export function AppShell({ user, children }: { user: User; children: React.React
   const pathname = usePathname();
   const operator = user.roles.includes("COURSE_REP") || user.roles.includes("ADMIN");
   const participant = user.roles.includes("PARTICIPANT");
-  const links = [
+  const isAdmin = user.roles.includes("ADMIN");
+  const links: NavigationLink[] = [
     ...(participant ? [{ href: "/home", label: "My home" }, { href: "/attendance", label: "My attendance" }, { href: "/history", label: "My history" }, { href: "/profile", label: "My profile" }] : []),
     ...(operator ? [{ href: "/operations", label: "Operations" }, { href: "/operations/attendance", label: "Live attendance" }, { href: "/operations/participants", label: "Participants" }, { href: "/operations/manual-verifications", label: "Review queues" }, { href: "/operations/sessions", label: "Sessions" }] : []),
     ...(user.roles.includes("ADMIN") ? [{ href: "/admin/roster", label: "Roster" }, { href: "/admin/roles", label: "Roles" }, { href: "/admin/config", label: "Course setup" }, { href: "/admin/photo-requests", label: "Photo reviews" }, { href: "/admin/attendance-corrections", label: "Corrections" }, { href: "/admin/audit", label: "Audit log" }, { href: "/admin/sheets", label: "Sheets" }] : []),
   ];
+  const mobileLinks: NavigationLink[] = isAdmin
+    ? [{ href: "/operations", label: "Operations" }, { href: "/operations/manual-verifications", label: "Review queues" }, { href: "/admin/roles", label: "Roles" }]
+    : user.roles.includes("COURSE_REP")
+    ? links.filter((link) => ["/home", "/attendance", "/operations", "/profile"].includes(link.href))
+    : links;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuGroups = [
+    { title: "Operations", links: links.filter((link) => link.href === "/operations" || link.href.startsWith("/operations/")) },
+    { title: "Administration", links: links.filter((link) => link.href.startsWith("/admin/")) },
+    { title: "Personal", links: links.filter((link) => link.href.startsWith("/home") || link.href.startsWith("/attendance") || link.href.startsWith("/history") || link.href.startsWith("/profile")) },
+  ].filter((group) => group.links.length > 0);
+  useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileMenuOpen(false); };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
   async function signOut() {
     await api.logout().catch(() => undefined);
     router.replace("/login");
@@ -74,20 +95,29 @@ export function AppShell({ user, children }: { user: User; children: React.React
       <div className="mx-auto flex max-w-7xl gap-8 px-4 py-6 pb-24 sm:px-6 lg:py-8 lg:pb-8">
         <aside className="hidden w-52 shrink-0 lg:block">
           <nav aria-label="Main navigation" className="sticky top-6 space-y-1">
-            {links.map((link) => <NavItem key={link.href} {...link} active={pathname === link.href || pathname.startsWith(`${link.href}/`)} />)}
+            {links.map((link) => <NavItem key={link.href} {...link} active={pathname === link.href} />)}
           </nav>
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 overflow-x-auto border-t border-border bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="mx-auto flex min-w-max justify-around gap-1">{links.map((link) => <NavItem key={link.href} {...link} active={pathname === link.href || pathname.startsWith(`${link.href}/`)} mobile />)}</div>
+        <div className="mx-auto flex min-w-max justify-around gap-1">{mobileLinks.map((link) => <NavItem key={link.href} {...link} active={pathname === link.href} mobile />)}{isAdmin ? <MobileMoreButton open={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} /> : null}</div>
       </nav>
+      {isAdmin && mobileMenuOpen ? <MobileMenu groups={menuGroups} onClose={() => setMobileMenuOpen(false)} pathname={pathname} /> : null}
     </div>
   );
 }
 
 function NavItem({ href, label, active, mobile = false }: { href: string; label: string; active: boolean; mobile?: boolean }) {
   return <Link href={href} className={`${mobile ? "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px]" : "block rounded-lg px-3 py-3 text-sm"} ${active ? "bg-pale font-bold text-primary" : "text-muted hover:bg-slate-50 hover:text-ink"}`}><span aria-hidden="true" className={mobile ? "text-base" : "hidden"}>●</span>{label}</Link>;
+}
+
+function MobileMoreButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return <button type="button" aria-expanded={open} aria-haspopup="dialog" onClick={onClick} className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] ${open ? "bg-pale font-bold text-primary" : "text-muted hover:bg-slate-50 hover:text-ink"}`}><span aria-hidden="true" className="text-base">●</span>More</button>;
+}
+
+function MobileMenu({ groups, onClose, pathname }: { groups: Array<{ title: string; links: NavigationLink[] }>; onClose: () => void; pathname: string }) {
+  return <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Administrator menu"><button type="button" aria-label="Close administrator menu" onClick={onClose} className="absolute inset-0 bg-slate-950/40" /><div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 shadow-2xl"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-primary">Administrator</p><h2 className="mt-1 text-xl font-bold text-ink">All tools</h2></div><button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:bg-slate-50 hover:text-ink">Close</button></div><div className="mt-5 space-y-6">{groups.map((group) => <section key={group.title}><h3 className="text-xs font-bold uppercase tracking-widest text-muted">{group.title}</h3><div className="mt-2 divide-y divide-border rounded-xl border border-border">{group.links.map((link) => <Link key={link.href} href={link.href} onClick={onClose} className={`block px-4 py-3 text-sm ${pathname === link.href ? "bg-pale font-bold text-primary" : "text-ink hover:bg-slate-50"}`}>{link.label}</Link>)}</div></section>)}</div></div></div>;
 }
 
 export function PageHeading({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: React.ReactNode }) {
