@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage, isApiError, newIdempotencyKey } from "../lib/api";
-import { formatDate, formatDateTime, formatTime, humanize } from "../lib/format";
+import { formatDate, formatDateTime, formatTime, humanize, primaryRoleLabel } from "../lib/format";
 import type { AttendanceContext, AttendanceHistoryEntry, DeviceChangeRequest, ManualVerificationCase, PhotoChangeRequest, User } from "../lib/types";
 import { Button, Card, EmptyState, Field, LoadingBlock, Notice, PageHeading, StatusPill, TextArea, TextLink } from "./ui";
 
@@ -11,7 +11,7 @@ export function ParticipantHome({ user }: { user: User }) {
   const [history, setHistory] = useState<AttendanceHistoryEntry[]>([]);
   const [error, setError] = useState<unknown>(null);
   useEffect(() => { Promise.all([api.attendanceContext(), api.history()]).then(([current, past]) => { setContext(current); setHistory(past.items); }).catch(setError); }, []);
-  return <><PageHeading eyebrow="Participant" title={`Welcome, ${user.fullName}`} description={`Serial number ${user.serialNumber ?? "not assigned"}. Here is your attendance status.`} /><div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">{error ? <Notice tone="error">{apiErrorMessage(error)} <button className="ml-2 font-bold underline" onClick={() => window.location.reload()}>Try again</button></Notice> : context ? <TodayCard context={context} /> : <LoadingBlock label="Checking today's attendance…" />}<Card><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-primary">Recent history</p><h2 className="mt-2 text-lg font-bold">Your attendance</h2></div><TextLink href="/history">View all</TextLink></div><div className="mt-5 space-y-3">{history.length === 0 ? <p className="text-sm text-muted">No sessions have been recorded yet.</p> : history.slice(0, 4).map((item) => <HistoryRow key={item.sessionId} item={item} />)}</div></Card></div></>;
+  return <><PageHeading eyebrow={primaryRoleLabel(user.roles)} title={`Welcome, ${user.fullName}`} description={`Serial number ${user.serialNumber ?? "not assigned"}. Here is your attendance status.`} /><div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">{error ? <Notice tone="error">{apiErrorMessage(error)} <button className="ml-2 font-bold underline" onClick={() => window.location.reload()}>Try again</button></Notice> : context ? <TodayCard context={context} /> : <LoadingBlock label="Checking today's attendance…" />}<Card><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-primary">Recent history</p><h2 className="mt-2 text-lg font-bold">Your attendance</h2></div><TextLink href="/history">View all</TextLink></div><div className="mt-5 space-y-3">{history.length === 0 ? <p className="text-sm text-muted">No sessions have been recorded yet.</p> : history.slice(0, 4).map((item) => <HistoryRow key={item.sessionId} item={item} />)}</div></Card></div></>;
 }
 
 function TodayCard({ context }: { context: AttendanceContext }) {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../lib/api";
+import { primaryRoleLabel } from "../lib/format";
 import type { Role, User } from "../lib/types";
 import { Button, LoadingBlock, TextLink } from "./ui";
 
@@ -65,7 +66,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             <span className="hidden text-sm font-bold sm:block">Kora Sales Academy</span>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted sm:block">{user.fullName}</span>
+            <span className="text-right"><span className="hidden text-sm text-muted sm:block">{user.fullName}</span><span className="block text-xs font-semibold text-primary">{primaryRoleLabel(user.roles)}</span></span>
             <Button variant="quiet" onClick={signOut} className="px-3">Log out</Button>
           </div>
         </div>
