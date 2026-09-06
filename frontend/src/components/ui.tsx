@@ -44,9 +44,11 @@ export function Field({
       <input
         {...props}
         id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : props["aria-describedby"]}
         className={`min-h-12 w-full rounded-lg border bg-white px-3 text-base text-ink shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100 ${error ? "border-danger" : "border-border"}`}
       />
-      {error ? <span className="mt-1 block text-sm text-danger">{error}</span> : null}
+      {error ? <span id={`${id}-error`} className="mt-1 block text-sm text-danger">{error}</span> : null}
       {!error && hint ? <span className="mt-1 block text-sm text-muted">{hint}</span> : null}
     </label>
   );

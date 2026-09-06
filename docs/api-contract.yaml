@@ -2684,6 +2684,17 @@ components:
           type: string
         details:
           type: object
+          properties:
+            field:
+              type: string
+              description: The single field associated with a service-level validation error.
+            fields:
+              type: object
+              description: Field names mapped to safe, user-facing validation messages.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
           additionalProperties: true
 
     ErrorEnvelope:

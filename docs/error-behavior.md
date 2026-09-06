@@ -24,6 +24,8 @@
 
 `details` must contain only safe, action-relevant data. Validation errors may include field names and safe reasons. Sensitive policy thresholds, raw tokens, stack information, and exact stored coordinates are excluded.
 
+For request validation, `details.fields` maps each invalid input name to one or more safe messages. The frontend uses this map to highlight the matching input and show the correction underneath it. Service-level validation may use `details.field` for a single input.
+
 ## Core attendance outcomes
 
 | Code/outcome | HTTP guidance | User behavior | Persistence behavior |
