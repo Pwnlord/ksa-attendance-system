@@ -1,8 +1,10 @@
-name: Run zero-cost background jobs
+name: Fallback zero-cost background jobs
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Supabase Cron is the primary scheduler. Keep this hourly fallback away
+    # from the top of the hour to reduce GitHub schedule contention.
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Wake the API and process due jobs
+      - name: Fallback wake of the API and due-job processing
         env:
           JOB_RUNNER_URL: ${{ secrets.JOB_RUNNER_URL }}
           JOB_RUNNER_SECRET: ${{ secrets.JOB_RUNNER_SECRET }}

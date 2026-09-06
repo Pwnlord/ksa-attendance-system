@@ -39,8 +39,9 @@ Render Free frontend  --public HTTPS proxy-->  Render Free API
                                                 +--> Resend staging email
                                                 +--> Google Sheets staging workbook
 
-GitHub Actions free schedule --protected request--> API job endpoint
-Administrator ----------------protected manual run-> API job endpoint
+Supabase Cron --protected request every 5 minutes--> API job endpoint
+GitHub Actions --low-frequency fallback/manual------> API job endpoint
+Administrator --protected manual run---------------> API job endpoint
 ```
 
 Do not create or approve a Render Postgres database, a Render background worker, a paid Render
@@ -53,7 +54,8 @@ service, or any required payment method for this staging plan. The detailed serv
 | Dependency | Status for staging | What it supplies |
 | --- | --- | --- |
 | Private GitHub repository | Required | Source code, branch, and the scheduled job workflow |
-| GitHub Actions | Required for automatic jobs; manual fallback exists | Calls the protected one-shot job endpoint |
+| Supabase Cron | Required for routine automatic jobs | Calls the protected one-shot job endpoint every five minutes |
+| GitHub Actions | Optional fallback/manual recovery | Calls the protected one-shot job endpoint hourly or manually |
 | Supabase Free project | Required | PostgreSQL database and private photo Storage |
 | Render account/workspace | Required | Free frontend and API web services |
 | Resend account | Required by the active staging Blueprint | Verification and password-recovery email |
@@ -97,11 +99,9 @@ context/
 4. Confirm the workflow file exists at `.github/workflows/zero-cost-jobs.yml`.
 5. In **Settings → Actions → General**, allow Actions for the repository if they are disabled.
 
-The workflow runs every five minutes and also supports **Run workflow**. GitHub scheduled
-workflows run from the latest commit on the repository's default branch. Therefore, for automatic
-staging runs, either make `staging` the default branch or merge the workflow into the current
-default branch. Until then, the workflow can be run manually. See the [GitHub scheduled workflow
-documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule).
+The workflow is a low-frequency fallback and also supports **Run workflow**. Supabase Cron is the
+primary five-minute scheduler. See [`supabase-cron-job-runner.md`](supabase-cron-job-runner.md) for
+the one-time setup and rollback procedure.
 
 Do not add the job secrets yet if the API URL does not exist. They are added after Render creates
 the API service.
@@ -309,9 +309,17 @@ errors rather than raw sensitive request data.
 
 Reference: [Sentry's Node setup](https://docs.sentry.io/platforms/javascript/guides/node/install/).
 
-## 7. Add the GitHub Actions job secrets
+## 7. Configure Supabase Cron
 
-Do this after the Render API URL is available.
+Follow [`supabase-cron-job-runner.md`](supabase-cron-job-runner.md) to enable `pg_cron` and
+`pg_net`, store the Render endpoint and matching `JOB_RUNNER_SECRET` in Vault, and create the
+`ksa-attendance-job-runner` schedule. Confirm its Cron history records runs approximately every
+five minutes before treating it as the primary scheduler.
+
+## 8. Add the GitHub fallback secrets
+
+Do this after the Render API URL is available. These values are for the low-frequency/manual
+fallback; they are not used by Supabase Cron.
 
 In the repository, open **Settings → Secrets and variables → Actions → New repository secret** and
 add:
@@ -324,7 +332,7 @@ add:
 The API endpoint accepts only the secret header and processes a bounded batch. It does not return
 job payloads. Never print the secret in workflow output.
 
-## 8. Run migrations and bootstrap the staging Administrator
+## 9. Run migrations and bootstrap the staging Administrator
 
 Render Free does not run the old pre-deploy migration command. From a controlled machine, with the
 backend dependencies installed and a temporary/local ignored environment containing the Supabase
@@ -340,7 +348,7 @@ Then use the secure bootstrap command documented in [`backend/README.md`](../bac
 create the first staging Administrator. Do not create the first Administrator through public
 registration. Record the migration commit and time, but never record passwords or keys.
 
-## 9. Verify staging in this order
+## 10. Verify staging in this order
 
 - [ ] Render shows exactly two Free web services and no paid resource, database, or worker.
 - [ ] Supabase staging database accepts the API's TLS connection.
@@ -354,8 +362,8 @@ registration. Record the migration commit and time, but never record passwords o
 - [ ] Supabase photo bucket is private; authorized review returns only a short-lived signed URL.
 - [ ] Resend delivers only controlled staging messages.
 - [ ] Sheets receives staging projections and an outage/retry is observed.
-- [ ] GitHub Actions manual dispatch succeeds; automatic schedule is confirmed from the default
-      branch or intentionally left manual.
+- [ ] Supabase Cron history shows approximately five-minute runs and the queue drains automatically.
+- [ ] GitHub Actions manual dispatch succeeds as a fallback.
 - [ ] A wrong job-runner secret is rejected.
 - [ ] Administrator manual **Run due jobs** works as a fallback.
 - [ ] Free-service sleep/wake, Supabase pause risk, rate limits, provider failures, and safe errors

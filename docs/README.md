@@ -31,6 +31,7 @@ The product owner's September 2026 choices in [`context/open-decisions_decided.m
 - [Staging external services setup](staging-external-services-setup.md) — one checklist for GitHub, Render, Supabase, Resend, Google Sheets, Sentry, migrations, and deployment verification.
 - [Zero-cost version plan](zero-cost-version-plan.md) — active free-tier deployment, task-processing changes, Supabase preparation, and limitations.
 - [Zero-cost architecture migration guide](zero-cost-architecture-migration.md) — paid/free topology comparison, configuration map, and reversal procedure.
+- [Supabase Cron job runner](supabase-cron-job-runner.md) — primary automatic scheduler setup, verification, and rollback.
 - [ADR-002 — Zero-cost deployment profile](adr-002-zero-cost-deployment.md) — accepted architecture decision and reversal summary.
 - [Text-first mockup specification](../mockup/screens.md) — screen inventory, content, actions, states, and transitions.
 

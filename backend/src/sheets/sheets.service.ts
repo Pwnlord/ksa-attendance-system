@@ -40,6 +40,7 @@ const reportStatuses: Array<"PENDING" | "RUNNING" | "RETRY_SCHEDULED"> = [
   "RUNNING",
   "RETRY_SCHEDULED",
 ];
+const jobStaleAfterMs = 15 * 60 * 1000;
 
 function idempotencyKey(value: string): string {
   const key = value.trim();
@@ -115,6 +116,16 @@ export class SheetsService {
           eq(backgroundJobs.status, "RUNNING"),
         ),
       );
+    const [stalePending] = await this.db
+      .select({ value: count() })
+      .from(backgroundJobs)
+      .where(
+        and(
+          inArray(backgroundJobs.jobType, projectionJobTypes),
+          inArray(backgroundJobs.status, reportStatuses),
+          sql`${backgroundJobs.runAfter} <= ${new Date(Date.now() - jobStaleAfterMs)}`,
+        ),
+      );
     const [lastSuccess] = await this.db
       .select({ completedAt: backgroundJobs.completedAt })
       .from(backgroundJobs)
@@ -140,9 +151,11 @@ export class SheetsService {
 
     const pendingCount = Number(pending?.value ?? 0);
     const failedCount = Number(failed?.value ?? 0);
+    const stalePendingCount = Number(stalePending?.value ?? 0);
     return {
-      status: failedCount > 0 ? "UNAVAILABLE" : pendingCount > 0 ? "DEGRADED" : "HEALTHY",
-      workerStatus: Number(running?.value ?? 0) > 0 || pendingCount === 0 ? "HEALTHY" : "STALE",
+      status: failedCount > 0 ? "UNAVAILABLE" : stalePendingCount > 0 ? "DEGRADED" : "HEALTHY",
+      workerStatus:
+        Number(running?.value ?? 0) > 0 || stalePendingCount === 0 ? "HEALTHY" : "STALE",
       pendingCount,
       failedCount,
       lastSuccessfulSyncAt: lastSuccess?.completedAt?.toISOString() ?? null,

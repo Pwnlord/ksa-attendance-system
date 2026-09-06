@@ -18,7 +18,7 @@ reversal path only; it must not be deployed while the no-paid-services decision 
 | Frontend | Render Next.js web service | Render Free Next.js web service | Render plan only |
 | API | Render NestJS web service on a paid plan | Render Free NestJS web service | Render plan and API URL wiring |
 | Database | Render managed PostgreSQL | Supabase Free PostgreSQL | `DATABASE_URL` and TLS settings; data migration only if the database itself moves |
-| Background work | Separate paid Render worker polling the PostgreSQL queue | No Render worker; a protected API endpoint processes a bounded batch, called by free GitHub Actions scheduling and manually when needed | `JOB_RUNNER_MODE` and deployment topology |
+| Background work | Separate paid Render worker polling the PostgreSQL queue | No Render worker; a protected API endpoint processes a bounded batch, called primarily by Supabase Cron, with a low-frequency GitHub fallback and manual recovery | `JOB_RUNNER_MODE` and deployment topology |
 | Queue | PostgreSQL-backed durable queue | The same PostgreSQL-backed durable queue | No data-model change |
 | Identification photos | Private Cloudflare R2 bucket | Supabase private Storage bucket | Storage driver and credentials; objects must be copied before switching provider |
 | Email | Resend | Resend free allowance, if sufficient | Credentials/sender may change; application email interface stays the same |
@@ -115,12 +115,11 @@ retention jobs. The zero-cost API exposes one protected internal operation that:
 - records success or schedules the existing retry behavior; and
 - returns counts without exposing job payloads or secrets.
 
-A free GitHub Actions scheduled workflow calls this endpoint periodically. An Administrator can
-also run a bounded batch from the protected Admin operation when a manual recovery is needed.
-GitHub scheduled workflows run from the latest commit on the repository's default branch, so the
-workflow must be present on that branch (or the `staging` branch must be made the default) for
-automatic staging runs. The workflow can still be started manually from the Actions tab when it
-exists only on `staging`. [GitHub scheduled workflow behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule)
+A Supabase Cron job calls this endpoint every five minutes through `pg_net`. An Administrator can
+also run a bounded batch from the protected Admin operation when a manual recovery is needed. The
+repository's GitHub workflow remains available as a low-frequency fallback and for manual runs;
+it is not the primary scheduler. The Supabase setup and rollback procedure is in
+[`supabase-cron-job-runner.md`](supabase-cron-job-runner.md).
 This means the system is eventually processed rather than continuously processed: email and
 Sheets work may wait for the next run, and exact-second lifecycle transitions cannot be promised
 when no request or scheduled run is occurring.

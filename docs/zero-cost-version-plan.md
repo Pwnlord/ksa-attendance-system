@@ -21,7 +21,7 @@ The application is intentionally configured through environment variables. These
 - Storage, email, Google Sheets, Sentry, and encryption values change from staging credentials to production credentials.
 - The application code and database schema remain the same unless a separate product decision changes them.
 
-One exception is the hosting shape of a background worker. A worker is a running process, not a credential or URL. A Render Free web service cannot be declared as a separate Render background worker just by changing an environment variable. The selected zero-cost arrangement is a protected one-shot task endpoint called by a free GitHub Actions schedule, with a protected Administrator-triggered fallback. The separate worker code and database queue remain in the repository so the same application can use them later if a paid or always-on topology is deliberately approved. Production is still constrained to free services under this plan.
+One exception is the hosting shape of a background worker. A worker is a running process, not a credential or URL. A Render Free web service cannot be declared as a separate Render background worker just by changing an environment variable. The selected zero-cost arrangement is a protected one-shot task endpoint called primarily by Supabase Cron, with a low-frequency GitHub fallback and a protected Administrator-triggered fallback. The separate worker code and database queue remain in the repository so the same application can use them later if a paid or always-on topology is deliberately approved. Production is still constrained to free services under this plan.
 
 ## What stays the same
 
@@ -110,7 +110,7 @@ This prevents an expired case from being approved, but it does not guarantee tha
 
 ### Photo retention
 
-Photo deletion is the most sensitive deferred task. The free scheduled runner attempts this work periodically, and the Administrator can run it manually if the schedule is delayed:
+Photo deletion is the most sensitive deferred task. Supabase Cron attempts this work periodically, and the Administrator can run it manually if the schedule is delayed:
 
 - An Administrator will run a clearly labelled cleanup action after the course-end date and retention period.
 - The action will delete the private storage object first and then mark the database record as deleted.
@@ -124,7 +124,7 @@ Before using real participant photos in production, verify that the free schedul
 
 The database task records and failure information can remain. The Administrator will retry email, Sheets, or cleanup work through an explicit action where supported.
 
-The API will not run a permanent polling loop inside a Free Render web service. The protected one-shot endpoint claims a bounded batch and exits; GitHub Actions calls it periodically and an Administrator can trigger the same operation manually.
+The API will not run a permanent polling loop inside a Free Render web service. The protected one-shot endpoint claims a bounded batch and exits; Supabase Cron calls it every five minutes, GitHub remains a low-frequency fallback, and an Administrator can trigger the same operation manually.
 
 ## Supabase preparation checklist
 
@@ -158,7 +158,7 @@ The repository implementation is complete for these profile changes:
 
 The following external deployment steps remain before staging can be verified. They are not automatic consequences of changing database or provider variables:
 
-- Use the protected one-shot job endpoint with the free GitHub Actions schedule and the Administrator fallback. Configure `JOB_RUNNER_MODE=endpoint` and a random `JOB_RUNNER_SECRET`.
+- Use the protected one-shot job endpoint with Supabase Cron, a low-frequency GitHub fallback, and the Administrator fallback. Configure `JOB_RUNNER_MODE=endpoint` and a random `JOB_RUNNER_SECRET`.
 - Keep the existing queue handlers and retry behavior. Verify scheduled email/Sheets processing, request-time session/case reconciliation, and auditable photo cleanup.
 - Keep the standalone worker command available for a later explicitly approved paid/always-on topology; it is not deployed by the zero-cost Blueprint.
 
@@ -172,7 +172,7 @@ The normal move to production should primarily replace staging values with produ
 - Production Google workbook/service account instead of the staging workbook/service account.
 - Production Sentry project/DSN instead of the staging DSN.
 - Production application URL and trusted origin instead of staging URLs.
-- The free scheduled job endpoint and GitHub Actions workflow are configured for production values as well as staging.
+- The free scheduled job endpoint and Supabase Cron job are configured for production values as well as staging; GitHub remains an optional low-frequency fallback.
 
 The scheduler URL and secret are the only additional production settings for the free job arrangement. Production inherits the same sleeping, scheduling, backup, and reliability limitations. Paid services are outside this plan.
 
@@ -190,8 +190,8 @@ The scheduler URL and secret are the only additional production settings for the
 
 1. Prepare the separate Supabase staging project using the checklist above.
 2. Configure the private storage bucket and free provider credentials without uploading real data.
-3. Configure the GitHub Actions secrets `JOB_RUNNER_URL` and `JOB_RUNNER_SECRET`.
-4. Run the local test suite and provider-failure tests.
+3. Configure the Supabase Cron job and securely store its URL and secret.
+4. Keep the GitHub fallback secrets available and run the local test suite and provider-failure tests.
 5. Deploy only fictional staging data and verify the scheduled/manual job paths.
 6. Review the pilot results before considering any real participant data.
 
