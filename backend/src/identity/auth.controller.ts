@@ -34,6 +34,7 @@ import type { AuthRequestContext } from "./decorators/current-user.decorator";
 import { normalizeEmail } from "./normalization";
 import { MAX_PHOTO_BYTES } from "./identity.constants";
 import { CourseConfigService } from "./course-config.service";
+import { RoleService } from "./role.service";
 
 function fingerprint(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -50,6 +51,7 @@ export class AuthController {
     private readonly limits: RateLimitService,
     private readonly config: ConfigService,
     private readonly courseConfig: CourseConfigService,
+    private readonly roles: RoleService,
   ) {}
 
   @Post("register")
@@ -64,6 +66,15 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const deviceCookieName = this.config.getOrThrow<string>("app.attendanceDeviceCookieName");
+    const existingDevice = await this.devices.findByToken(request.cookies?.[deviceCookieName]);
+    if (existingDevice) {
+      throw new AppError(
+        "BROWSER_ASSIGNED_TO_OTHER_ACCOUNT",
+        409,
+        "This browser is already assigned to another participant account. Use a different browser profile to create an account.",
+      );
+    }
     const ip = request.ip ?? "unknown";
     const courseConfig = await this.courseConfig.getRecord();
     const normalizedEmail = normalizeEmail(input.email);
@@ -122,6 +133,18 @@ export class AuthController {
         response,
       );
       throw new AppError("AUTHENTICATION_REQUIRED", 401, "The sign-in details are not correct.");
+    }
+
+    if (await this.roles.hasAny(user.id, ["PARTICIPANT"])) {
+      const deviceCookieName = this.config.getOrThrow<string>("app.attendanceDeviceCookieName");
+      const existingDevice = await this.devices.findByToken(request.cookies?.[deviceCookieName]);
+      if (existingDevice && existingDevice.userId !== user.id) {
+        throw new AppError(
+          "BROWSER_ASSIGNED_TO_OTHER_ACCOUNT",
+          409,
+          "This browser is already assigned to another participant account. Use that account or a different browser profile.",
+        );
+      }
     }
 
     await this.sessions.create(

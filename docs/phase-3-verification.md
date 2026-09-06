@@ -39,6 +39,7 @@ The API smoke run on an isolated local port verified:
 - an Administrator can view roster entries, replace the Course Representative, and approve a photo replacement;
 - a new browser can authenticate but is `UNRECOGNIZED_BROWSER` for attendance-device status;
 - logout returns `204` and does not destroy the original browser's attendance-device recognition;
+- a browser already assigned to one participant cannot register or log into a different participant account;
 - cookie-authenticated profile changes without a trusted origin return `ORIGIN_NOT_ALLOWED`;
 - trusted-origin profile changes succeed and create an audit event.
 

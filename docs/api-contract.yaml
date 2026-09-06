@@ -2665,6 +2665,7 @@ components:
             - SESSION_CLOSED
             - SESSION_EXTENSION_LIMIT
             - DEVICE_CHANGE_REQUIRED
+            - BROWSER_ASSIGNED_TO_OTHER_ACCOUNT
             - LOCATION_UNCERTAIN
             - LOCATION_PERMISSION_DENIED
             - LOCATION_TIMEOUT

@@ -46,6 +46,7 @@ Security controls must preserve the product's WCAG 2.2 AA target; authentication
 - Store only a one-way token hash or equivalent protected server-side reference where practical.
 - Never log, export, place in URLs, or return raw device credentials in API bodies.
 - Do not automatically rebind a recognized device when a different participant logs in.
+- A browser already carrying a device credential for one participant cannot register another participant account or log into a different participant account. The backend returns `BROWSER_ASSIGNED_TO_OTHER_ACCOUNT` before creating the account or login session.
 - Device replacement must atomically revoke the previous credential and activate the candidate.
 - Attendance inserts are protected by a database uniqueness constraint and safe duplicate handling.
 - State-changing operations must be idempotent or safely reject/replay based on current state.

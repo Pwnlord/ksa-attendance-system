@@ -33,6 +33,7 @@
 | `SESSION_NOT_OPEN` | 409 | “Attendance is not currently open.” | No attendance or pending case |
 | `SESSION_CLOSED` | 409 | “Today's attendance session has ended.” | No automatic attendance |
 | `DEVICE_CHANGE_REQUIRED` | 409 | Explain device is not approved; offer request flow | Record safe attempt/request context only |
+| `BROWSER_ASSIGNED_TO_OTHER_ACCOUNT` | 409 | Explain that the browser is already assigned to another participant; use that account or a different browser profile | No account or login session is created |
 | `ALREADY_CHECKED_IN` | 200 | Show original confirmation time | Return existing record; no duplicate |
 | `LOCATION_UNCERTAIN` | 422 | Explain that review is pending; offer retry and case status | Safe attempt plus one auto-created pending manual case |
 | `LOCATION_PERMISSION_DENIED` | 422 | Give settings/retry guidance and `Request Manual Verification` | Safe attempt; no case until explicitly requested |
@@ -58,7 +59,7 @@ The exact status-code choice is finalized in the API contract. Clients must prim
 | Cookies/site data cleared | Treat as unrecognized attendance device |
 | Browser changed on same phone | Treat as a new attendance-device installation |
 | Private/incognito registration | Warn or discourage; missing credential later uses replacement flow |
-| Same browser used for another participant | Never automatically rebind; block or send to review |
+| Same browser used for another participant | Never automatically rebind; block new participant registration and different-participant login |
 | Password compromised | Password alone is insufficient for automatic attendance |
 | Phone stolen | Approve candidate device and immediately revoke old credential |
 | Course Rep loses device | Another Administrator must approve replacement |

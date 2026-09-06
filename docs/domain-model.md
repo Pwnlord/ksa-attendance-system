@@ -151,7 +151,7 @@ Key information:
 - User, token hash or protected reference, `ACTIVE`/`REVOKED` status.
 - First-seen, approval, revocation, and minimal non-invasive metadata.
 
-Only one device may be active for a participant. The separate device cookie has no independent time expiry; it remains valid until device-replacement approval or an account-security action revokes it. Authentication and attendance-device recognition are separate concerns.
+Only one device may be active for a participant. The separate device cookie has no independent time expiry; it remains valid until device-replacement approval or an account-security action revokes it. A browser that carries a participant's device credential cannot register or log into a different Participant account, and logout preserves the binding for the same account. This is a browser-installation control, not immutable physical-device identification. Clearing cookies or using a new browser uses the existing device-replacement approval flow. Authentication and attendance-device recognition are separate concerns.
 
 ### DeviceChangeRequest
 
