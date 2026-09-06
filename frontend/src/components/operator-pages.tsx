@@ -85,6 +85,8 @@ export function OperationsOverview({ user }: { user: User }) {
   const [end, setEnd] = useState(localInputFromDate(new Date(Date.now() + 3 * 60 * 60 * 1000)));
   const [reason, setReason] = useState("");
   const [extensionEnd, setExtensionEnd] = useState(localInputFromDate(new Date(Date.now() + 30 * 60 * 1000)));
+  const [manageSessionOpen, setManageSessionOpen] = useState(false);
+  const isCourseRep = user.roles.includes("COURSE_REP") && !user.roles.includes("ADMIN");
 
   const load = async () => {
     try {
@@ -174,6 +176,48 @@ export function OperationsOverview({ user }: { user: User }) {
     }
   }
 
+  const sessionControls = current?.status === "OPEN" ? (
+    <div className={`${isCourseRep ? "mt-4" : "mt-6 border-t border-blue-100 pt-5"} grid gap-4 lg:grid-cols-[1fr_auto]`}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="New end time" type="datetime-local" value={extensionEnd} onChange={(event) => setExtensionEnd(event.target.value)} />
+        <TextArea label="Reason for extension or cancellation" name="session-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="At least 3 characters" />
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:justify-end">
+        <Button variant="secondary" onClick={() => void extend()} disabled={busy || reason.trim().length < 3}>Extend end time</Button>
+        <Button variant="danger" onClick={() => void close()} disabled={busy}>Close attendance</Button>
+        <Button variant="quiet" onClick={() => void cancel()} disabled={busy || reason.trim().length < 3}>Cancel session</Button>
+      </div>
+    </div>
+  ) : null;
+  const currentSessionCard = current ? (
+    <Card className="mt-5 border-blue-100 bg-pale">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <StatusPill status={current.status} />
+          <h2 className="mt-3 text-xl font-bold">{sessionLabel(current)}</h2>
+          <p className="mt-1 text-sm text-muted">{current.presentCount} participant{current.presentCount === 1 ? "" : "s"} checked in · local timezone {current.timezone}</p>
+        </div>
+        <TextLink href="/operations/attendance">View live attendance</TextLink>
+      </div>
+      {isCourseRep && sessionControls ? <div className="mt-5 border-t border-blue-100 pt-4"><button type="button" aria-expanded={manageSessionOpen} aria-controls="course-rep-session-controls" onClick={() => setManageSessionOpen((open) => !open)} className="text-sm font-bold text-primary hover:underline">{manageSessionOpen ? "Hide session controls" : "Manage current session"}</button><div id="course-rep-session-controls" hidden={!manageSessionOpen}>{sessionControls}</div></div> : sessionControls}
+    </Card>
+  ) : (
+    <Card className="mt-5">
+      <h2 className="text-lg font-bold">Open or schedule attendance</h2>
+      <p className="mt-2 text-sm leading-6 text-muted">Times use the Academy timezone, Africa/Lagos. A current session can open immediately; a future start is scheduled.</p>
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <Field label="Attendance date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <Field label="Start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} />
+        <Field label="End" type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Button onClick={() => void create("OPEN")} disabled={busy}>Open attendance now</Button>
+        <Button variant="secondary" onClick={() => void create("SCHEDULED")} disabled={busy}>Schedule attendance</Button>
+      </div>
+    </Card>
+  );
+  const courseRepTools = <Card className="mt-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-primary">Quick access</p><h2 className="mt-2 text-lg font-bold">Operations tools</h2></div><span className="text-xs text-muted">Tap to open</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><OperationsLink href="/operations/attendance" label="Live attendance" description="See who is present now." /><OperationsLink href="/operations/participants" label="Participants" description="View participants and record emergency attendance." /><OperationsLink href="/operations/manual-verifications" label="Review queues" description={`${manualCount} manual review${manualCount === 1 ? "" : "s"} · ${deviceCount} device request${deviceCount === 1 ? "" : "s"}.`} /><OperationsLink href="/operations/sessions" label="Sessions" description="Review and manage session history." /></div></Card>;
+
   return (
     <>
       <PageHeading
@@ -185,66 +229,21 @@ export function OperationsOverview({ user }: { user: User }) {
       {error ? <Notice tone="error">{apiErrorMessage(error)} <button className="ml-2 font-bold underline" onClick={() => void load()}>Try again</button></Notice> : null}
       {message ? <div className="mb-5"><Notice tone="success">{message}</Notice></div> : null}
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Metric label="Current state" value={current ? humanize(current.status) : "No open session"} tone={current ? "primary" : "muted"} />
-        <Metric label="Manual reviews" value={String(manualCount)} href="/operations/manual-verifications" tone={manualCount ? "warning" : "muted"} />
-        <Metric label="Device requests" value={String(deviceCount)} href="/operations/manual-verifications#devices" tone={deviceCount ? "warning" : "muted"} />
-      </div>
+      {isCourseRep ? currentSessionCard : null}
 
-      <Card className="mt-5">
-        <p className="text-xs font-bold uppercase tracking-widest text-primary">Operations tools</p>
-        <h2 className="mt-2 text-lg font-bold">Manage attendance</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <OperationsLink href="/operations/attendance" label="Live attendance" description="See who is present now." />
-          <OperationsLink href="/operations/participants" label="Participants" description="View participants and record emergency attendance." />
-          <OperationsLink href="/operations/manual-verifications" label="Review queues" description="Handle manual reviews and device changes." />
-          <OperationsLink href="/operations/sessions" label="Sessions" description="Review and manage session history." />
+      {isCourseRep ? courseRepTools : <>
+        <div className="grid gap-5 sm:grid-cols-3">
+          <Metric label="Current state" value={current ? humanize(current.status) : "No open session"} tone={current ? "primary" : "muted"} />
+          <Metric label="Manual reviews" value={String(manualCount)} href="/operations/manual-verifications" tone={manualCount ? "warning" : "muted"} />
+          <Metric label="Device requests" value={String(deviceCount)} href="/operations/manual-verifications#devices" tone={deviceCount ? "warning" : "muted"} />
         </div>
-      </Card>
-
-      {current ? (
-        <Card className="mt-5 border-blue-100 bg-pale">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <StatusPill status={current.status} />
-              <h2 className="mt-3 text-xl font-bold">{sessionLabel(current)}</h2>
-              <p className="mt-1 text-sm text-muted">{current.presentCount} participant{current.presentCount === 1 ? "" : "s"} checked in · local timezone {current.timezone}</p>
-            </div>
-            <TextLink href="/operations/attendance">View live attendance</TextLink>
-          </div>
-          {current.status === "OPEN" ? (
-            <div className="mt-6 grid gap-4 border-t border-blue-100 pt-5 lg:grid-cols-[1fr_auto]">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="New end time" type="datetime-local" value={extensionEnd} onChange={(event) => setExtensionEnd(event.target.value)} />
-                <TextArea label="Reason for extension or cancellation" name="session-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="At least 3 characters" />
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:justify-end">
-                <Button variant="secondary" onClick={() => void extend()} disabled={busy || reason.trim().length < 3}>Extend end time</Button>
-                <Button variant="danger" onClick={() => void close()} disabled={busy}>Close attendance</Button>
-                <Button variant="quiet" onClick={() => void cancel()} disabled={busy || reason.trim().length < 3}>Cancel session</Button>
-              </div>
-            </div>
-          ) : null}
-        </Card>
-      ) : (
-        <Card className="mt-5">
-          <h2 className="text-lg font-bold">Open or schedule attendance</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">Times use the Academy timezone, Africa/Lagos. A current session can open immediately; a future start is scheduled.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <Field label="Attendance date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            <Field label="Start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} />
-            <Field label="End" type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} />
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={() => void create("OPEN")} disabled={busy}>Open attendance now</Button>
-            <Button variant="secondary" onClick={() => void create("SCHEDULED")} disabled={busy}>Schedule attendance</Button>
-          </div>
-        </Card>
-      )}
+        <Card className="mt-5"><p className="text-xs font-bold uppercase tracking-widest text-primary">Operations tools</p><h2 className="mt-2 text-lg font-bold">Manage attendance</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><OperationsLink href="/operations/attendance" label="Live attendance" description="See who is present now." /><OperationsLink href="/operations/participants" label="Participants" description="View participants and record emergency attendance." /><OperationsLink href="/operations/manual-verifications" label="Review queues" description="Handle manual reviews and device changes." /><OperationsLink href="/operations/sessions" label="Sessions" description="Review and manage session history." /></div></Card>
+        {currentSessionCard}
+      </>}
 
       <Card className="mt-5">
         <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-primary">Recent sessions</p><h2 className="mt-2 text-lg font-bold">Session history</h2></div><TextLink href="/operations/sessions">View all</TextLink></div>
-        <div className="mt-5 divide-y divide-border">{recent.length === 0 ? <EmptyState title="No sessions yet" description="Create the first attendance session above." /> : recent.map((session) => <SessionRow key={session.id} session={session} />)}</div>
+        <div className="mt-5 divide-y divide-border">{recent.length === 0 ? <EmptyState title="No sessions yet" description="Create the first attendance session above." /> : recent.slice(0, isCourseRep ? 3 : 6).map((session) => <SessionRow key={session.id} session={session} />)}</div>
       </Card>
     </>
   );
